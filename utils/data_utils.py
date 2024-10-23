@@ -1,40 +1,9 @@
+import os
+
 import numpy as np
 import torch
 
 from data.camera import normalize_screen_coordinates, world_to_camera
-
-
-def wrap(func, unsqueeze, *args):
-    """
-    Wrap a torch function so it can be called with NumPy arrays.
-    Input and return types are seamlessly converted.
-    """
-
-    # Convert input types where applicable
-    args = list(args)
-    for i, arg in enumerate(args):
-        if type(arg) == np.ndarray:
-            args[i] = torch.from_numpy(arg)
-            if unsqueeze:
-                args[i] = args[i].unsqueeze(0)
-
-    result = func(*args)
-
-    # Convert output types where applicable
-    if isinstance(result, tuple):
-        result = list(result)
-        for i, res in enumerate(result):
-            if type(res) == torch.Tensor:
-                if unsqueeze:
-                    res = res.squeeze(0)
-                result[i] = res.numpy()
-        return tuple(result)
-    elif type(result) == torch.Tensor:
-        if unsqueeze:
-            result = result.squeeze(0)
-        return result.numpy()
-    else:
-        return result
 
 def create_2d_data(data_path, dataset):
     keypoints = np.load(data_path, allow_pickle=True)
@@ -65,30 +34,19 @@ def read_3d_data(dataset):
 
     return dataset
 
-# TODO.add things to numpy files
-def fetch(subjects, dataset, keypoints, action_filter=None, stride=1, parse_3d_poses=True):
+def create_train_test_files(subjects, dataset, keypoints, type, save_path):
     out_poses_3d = []
     out_poses_2d = []
     out_actions = []
 
     for subject in subjects:
         for action in keypoints[subject].keys():
-            if action_filter is not None:
-                found = False
-                for a in action_filter:
-                    # if action.startswith(a):
-                    if action.split(' ')[0] == a:
-                        found = True
-                        break
-                if not found:
-                    continue
-
             poses_2d = keypoints[subject][action]
             for i in range(len(poses_2d)):  # Iterate across cameras
                 out_poses_2d.append(poses_2d[i])
                 out_actions.append([action.split(' ')[0]] * poses_2d[i].shape[0])
 
-            if parse_3d_poses and 'positions_3d' in dataset[subject][action]:
+            if 'positions_3d' in dataset[subject][action]:
                 poses_3d = dataset[subject][action]['positions_3d']
                 assert len(poses_3d) == len(poses_2d), 'Camera count mismatch'
                 for i in range(len(poses_3d)):  # Iterate across cameras
@@ -97,12 +55,19 @@ def fetch(subjects, dataset, keypoints, action_filter=None, stride=1, parse_3d_p
     if len(out_poses_3d) == 0:
         out_poses_3d = None
 
-    if stride > 1:
-        # Downsample as requested
-        for i in range(len(out_poses_2d)):
-            out_poses_2d[i] = out_poses_2d[i][::stride]
-            out_actions[i] = out_actions[i][::stride]
-            if out_poses_3d is not None:
-                out_poses_3d[i] = out_poses_3d[i][::stride]
+    # save 3d poses
+    pose_3d_file_path = os.path.join(save_path, f"{type}_3d_poses.npy")
+    np.save(pose_3d_file_path, out_poses_3d)
+    print(f"Saved 3d poses in file {pose_3d_file_path}")
+
+    # save 2d poses
+    pose_2d_file_path = os.path.join(save_path, f"{type}_2d_poses.npy")
+    np.save(pose_2d_file_path, out_poses_2d)
+    print(f"Saved 2d poses in file {pose_2d_file_path}")
+
+    # save actions
+    pose_action_file_path = os.path.join(save_path, f"{type}_actions.npy")
+    np.save(pose_action_file_path, out_actions)
+    print(f"Saved pose actions in file {pose_action_file_path}")
 
     return out_poses_3d, out_poses_2d, out_actions
