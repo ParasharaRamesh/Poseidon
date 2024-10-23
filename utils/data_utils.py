@@ -55,6 +55,12 @@ def create_train_test_files(subjects, dataset, keypoints, type, save_path):
     if len(out_poses_3d) == 0:
         out_poses_3d = None
 
+    #convert to np arrays
+    #TODO.x fails here
+    out_poses_3d = np.array(out_poses_3d)
+    out_poses_2d = np.array(out_poses_2d)
+    out_actions = np.array(out_actions)
+
     # save 3d poses
     pose_3d_file_path = os.path.join(save_path, f"{type}_3d_poses.npy")
     np.save(pose_3d_file_path, out_poses_3d)
