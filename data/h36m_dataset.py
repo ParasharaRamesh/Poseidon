@@ -230,7 +230,8 @@ h36m_cameras_extrinsic_params = {
 
 class Human36mDataset(MocapDataset):
     def __init__(self, path, remove_static_joints=True):
-        super(Human36mDataset, self).__init__(skeleton=h36m_skeleton, fps=50)
+        skeleton = copy.deepcopy(h36m_skeleton)
+        super(Human36mDataset, self).__init__(skeleton=skeleton, fps=50)
 
         self._cameras = copy.deepcopy(h36m_cameras_extrinsic_params)
         for cameras in self._cameras.values():
@@ -274,11 +275,12 @@ class Human36mDataset(MocapDataset):
             self.remove_joints(joints)
 
             # Rewire shoulders to the correct parents
+            assert len(self._skeleton._parents) >= 13, f"Skeletal parents only has {len(self._skeleton._parents)} elements"
             self._skeleton._parents[10] = 8
             self._skeleton._parents[13] = 8
 
             # Set joints group
-            self._skeleton._joints_group = h36m_skeleton_joints_group
+            self._skeleton._joints_group = copy.deepcopy(h36m_skeleton_joints_group)
 
     def define_actions(self, action=None):
         all_actions = ["Directions",

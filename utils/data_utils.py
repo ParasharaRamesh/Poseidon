@@ -44,7 +44,7 @@ def create_train_test_files(subjects, dataset, keypoints, type, save_path):
             poses_2d = keypoints[subject][action]
             for i in range(len(poses_2d)):  # Iterate across cameras
                 out_poses_2d.append(poses_2d[i])
-                out_actions.append([action.split(' ')[0]] * poses_2d[i].shape[0])
+                out_actions.extend([action.split(' ')[0]] * poses_2d[i].shape[0])
 
             if 'positions_3d' in dataset[subject][action]:
                 poses_3d = dataset[subject][action]['positions_3d']
@@ -55,25 +55,22 @@ def create_train_test_files(subjects, dataset, keypoints, type, save_path):
     if len(out_poses_3d) == 0:
         out_poses_3d = None
 
-    #convert to np arrays
-    #TODO.x fails here
-    out_poses_3d = np.array(out_poses_3d)
-    out_poses_2d = np.array(out_poses_2d)
+    # save actions
     out_actions = np.array(out_actions)
+    pose_action_file_path = os.path.join(save_path, f"{type}_actions.npy")
+    np.save(pose_action_file_path, out_actions)
+    print(f"Saved pose actions in file {pose_action_file_path}")
 
     # save 3d poses
+    out_poses_3d = np.concatenate(out_poses_3d, axis=0)
     pose_3d_file_path = os.path.join(save_path, f"{type}_3d_poses.npy")
     np.save(pose_3d_file_path, out_poses_3d)
     print(f"Saved 3d poses in file {pose_3d_file_path}")
 
     # save 2d poses
+    out_poses_2d = np.concatenate(out_poses_2d, axis=0)
     pose_2d_file_path = os.path.join(save_path, f"{type}_2d_poses.npy")
     np.save(pose_2d_file_path, out_poses_2d)
     print(f"Saved 2d poses in file {pose_2d_file_path}")
-
-    # save actions
-    pose_action_file_path = os.path.join(save_path, f"{type}_actions.npy")
-    np.save(pose_action_file_path, out_actions)
-    print(f"Saved pose actions in file {pose_action_file_path}")
 
     return out_poses_3d, out_poses_2d, out_actions
