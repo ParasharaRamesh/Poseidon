@@ -1,7 +1,7 @@
 import numpy as np
 from torch.utils.data import Dataset
 
-class Human36MDataset(Dataset):
+class Human36MLoader(Dataset):
     def __init__(self, two_d_dataset_path, three_d_dataset_path, label_dataset_path):
         self.two_d_dataset_path = two_d_dataset_path
         self.three_d_dataset_path = three_d_dataset_path
