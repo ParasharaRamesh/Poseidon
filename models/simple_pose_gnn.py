@@ -1,3 +1,4 @@
+import dgl
 import dgl.nn as dglnn
 import torch.nn as nn
 import torch.nn.functional as F
@@ -13,9 +14,14 @@ class SimplePoseGNN(nn.Module):
         self.classifier = nn.Linear(output_dim, num_classes)
         
     def forward(self, graph, node_features):
+        # Convert Node features into Node Embeddings using Linear Layer
         h = self.embedding(node_features)
+        # Perform Graph Convolutions with ReLU
         h = self.conv1(graph, h)
         h = F.relu(h)
         h = self.conv2(graph, h)
-        label = self.classifier(h)
+        # Perform classification
+        graph.ndata['h'] = h
+        y = dgl.mean_nodes(graph, 'h')
+        label = self.classifier(y)
         return h, label

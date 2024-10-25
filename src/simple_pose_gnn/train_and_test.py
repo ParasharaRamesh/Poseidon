@@ -1,8 +1,9 @@
-from models.simple_pose import SimplePose
+from models.simple_pose_gnn import SimplePoseGNN
 from torch import nn
 from torch.utils.data import DataLoader
-from dataloader.h36M_loader import Human36MLoader
+from dataloader.h36M_graph_loader import Human36MGraphDataset
 from tqdm import tqdm
+import dgl
 import torch
 import datetime
 import argparse
@@ -13,9 +14,12 @@ import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-def kaiming_weights_init(m):
-    if isinstance(m, nn.Linear):
-        torch.nn.init.kaiming_normal_(m.weight)
+# Collate_fn is required for DGL to Pytorch data fetching
+def collate(samples):
+    graphs, labels = map(list, zip(*samples))
+    batch_graphs = dgl.batch(graphs)
+    batch_labels = torch.tensor(labels)
+    return batch_graphs, batch_labels
         
 def train_once(train_dict):
     model = train_dict['model']
@@ -32,19 +36,19 @@ def train_once(train_dict):
     action_losses = []
     
     model.train()
-    for data in tqdm(dataloader):
+    progress_bar = tqdm(enumerate(dataloader))
+    for index, (batch_graphs, batch_labels) in progress_bar:
+        progress_bar.set_description(f" {index + 1} / {len(dataloader)}")
         # Prepare Data
-        two_dim_input_data, three_dim_output_data, action_labels= data
-        two_dim_input_data = two_dim_input_data.to(device)
-        three_dim_output_data = three_dim_output_data.to(device)
-        action_labels = action_labels.to(device)
-        # Set Gradients to 0
-        optimizer.zero_grad()
+        batch_graphs = batch_graphs.to(torch.device(device))
+        batch_2d = batch_graphs.ndata['feat_2d']
+        batch_3d = batch_graphs.ndata['feat_3d']
+        batch_labels = batch_labels.to(device)
         # Train Model
-        predicted_3d_pose_estimations, predicted_action_labels = model(two_dim_input_data)
+        predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
         # Calculate Loss
-        three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
-        action_label_loss = action_label_loss_fn(predicted_action_labels, action_labels)
+        three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
+        action_label_loss = action_label_loss_fn(predicted_action_labels, batch_labels)
         loss = three_dim_pose_estimation_loss + action_label_loss
         # Store Results
         total_losses.append(loss)
@@ -52,8 +56,9 @@ def train_once(train_dict):
         action_losses.append(action_label_loss)
         predicted_action_labels = torch.argmax(predicted_action_labels, axis=1)
         predicted_labels = predicted_action_labels if predicted_labels is None else torch.cat((predicted_labels, predicted_action_labels), axis=0)
-        true_labels = action_labels if true_labels is None else torch.cat((true_labels, action_labels), axis=0)
+        true_labels = batch_labels if true_labels is None else torch.cat((true_labels, batch_labels), axis=0)
         # Optimize Gradients and Update Learning Rate
+        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
     
@@ -74,17 +79,20 @@ def test_once(test_dict):
     
     model.eval()
     with torch.no_grad():
-        for data in tqdm(dataloader):
+        progress_bar = tqdm(enumerate(dataloader))
+        for index, (batch_graphs, batch_labels) in progress_bar:
+            progress_bar.set_description(f" {index + 1} / {len(dataloader)}")
+            progress_bar.set_description(f" {index + 1} / {len(dataloader)}")
             # Prepare Data
-            two_dim_input_data, three_dim_output_data, action_labels= data
-            two_dim_input_data = two_dim_input_data.to(device)
-            three_dim_output_data = three_dim_output_data.to(device)
-            action_labels = action_labels.to(device)
-            # Predict with model
-            predicted_3d_pose_estimations, predicted_action_labels = model(two_dim_input_data)
+            batch_graphs = batch_graphs.to(torch.device(device))
+            batch_2d = batch_graphs.ndata['feat_2d']
+            batch_3d = batch_graphs.ndata['feat_3d']
+            batch_labels = batch_labels.to(device)
+            # Train Model
+            predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
             # Calculate Loss
-            three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
-            action_label_loss = action_label_loss_fn(predicted_action_labels, action_labels)
+            three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
+            action_label_loss = action_label_loss_fn(predicted_action_labels, batch_labels)
             loss = three_dim_pose_estimation_loss + action_label_loss
             # Store Results
             total_losses.append(loss)
@@ -92,7 +100,7 @@ def test_once(test_dict):
             action_losses.append(action_label_loss)
             predicted_action_labels = torch.argmax(predicted_action_labels, axis=1)
             predicted_labels = predicted_action_labels if predicted_labels is None else torch.cat((predicted_labels, predicted_action_labels), axis=0)
-            true_labels = action_labels if true_labels is None else torch.cat((true_labels, action_labels), axis=0)
+            true_labels = batch_labels if true_labels is None else torch.cat((true_labels, batch_labels), axis=0)
 
     return predicted_labels, true_labels, total_losses, pose_losses, action_losses
 
@@ -150,35 +158,34 @@ def training_loop(args):
         file.close()
     
     # Prepare Training Data
-    training_data = Human36MLoader(TRAINING_2D_DATA_PATH, TRAINING_3D_DATA_PATH, TRAINING_LABEL_PATH)
-    train_dataloader = DataLoader(training_data, batch_size=BATCH_SIZE, shuffle=True)
+    training_data = Human36MGraphDataset(TRAINING_2D_DATA_PATH, TRAINING_3D_DATA_PATH, TRAINING_LABEL_PATH)
+    train_dataloader = DataLoader(training_data, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate)
     # Prepare Testing Data
-    testing_data = Human36MLoader(TESTING_2D_DATA_PATH, TESTING_3D_DATA_PATH, TESTING_LABEL_PATH)
-    test_dataloader = DataLoader(testing_data, batch_size=BATCH_SIZE, shuffle=True)
+    testing_data = Human36MGraphDataset(TESTING_2D_DATA_PATH, TESTING_3D_DATA_PATH, TESTING_LABEL_PATH)
+    test_dataloader = DataLoader(testing_data, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate)
     
     logging.info(f'Setup Training and Testing Dataloaders')
     
-    TOTAL_JOINTS = training_data.get_joint_numbers()
-    TOTAL_ACTIONS = training_data.get_action_numbers()
+    NUM_LABELS = len(training_data.unique_labels)
+    INPUT_DIM = training_data[0][0].ndata['feat_2d'].shape[1]
+    OUTPUT_DIM = training_data[0][0].ndata['feat_3d'].shape[1]
+    HIDDEN_SIZE = 1024
     
     # Declare Model
-    model = SimplePose(TOTAL_JOINTS, TOTAL_ACTIONS).to(DEVICE)
-    # Apply Kaiming Init on Linear Layers
-    model.apply(kaiming_weights_init)
-    logging.info(f'Setup SimplePose model with Kaiming Weights')
+    model = SimplePoseGNN(INPUT_DIM, OUTPUT_DIM, HIDDEN_SIZE, NUM_LABELS).to(DEVICE)
+    logging.info(f'Setup SimplePoseGNN model')
     logging.info(model)
+    
     
     # Declare Optimizer
     optimizer = torch.optim.Adam(params=model.parameters(), lr=LEARNING_RATE)
+
     logging.info(f'Setup Optimizer')
-    
-    # Declare Scheduler
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.96) # Value used by the original authors
-    logging.info(f'Setup Scheduler')
 
     # Loss Function
     three_dim_pose_loss_fn = nn.MSELoss()
     action_label_loss_fn = nn.CrossEntropyLoss()
+    
     logging.info(f'Setup loss functions')
     
     # Training and Testing Loop
@@ -196,12 +203,11 @@ def training_loop(args):
             test_predicted_labels, test_true_labels, test_total_losses, test_pose_losses, test_action_losses = test_once(test_dict)
             print_evaluation_metric(epoch, test_predicted_labels, test_true_labels, test_total_losses, test_pose_losses, test_action_losses, 'test')
             
-            save_model(epoch, model, optimizer, scheduler)
-        scheduler.step()
+            save_model(epoch, model, optimizer)
 
 if __name__ == '__main__':
     timestamp = datetime.now().strftime("%Y-%m-%d--%H-%M-%S")
-    parser = argparse.ArgumentParser(description='SimplePose Training Code')
+    parser = argparse.ArgumentParser(description='SimplePoseGNN Training Code')
     parser.add_argument('--learning_rate', default=1e-3)
     parser.add_argument('--num_epochs', type=int, default=200)
     parser.add_argument('--epoch_report', type=int, default=10)
@@ -212,6 +218,6 @@ if __name__ == '__main__':
     parser.add_argument('--testing_2d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'test_2d_poses.npy'))
     parser.add_argument('--testing_3d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'test_3d_poses.npy'))
     parser.add_argument('--testing_label_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'test_actions.npy'))
-    parser.add_argument('--save_path', type=str, default=os.path.join('model_outputs', 'simple_pose', timestamp))
+    parser.add_argument('--save_path', type=str, default=os.path.join('model_outputs', 'simple_pose_gnn', timestamp))
     args = parser.parse_args()
     training_loop(args)
