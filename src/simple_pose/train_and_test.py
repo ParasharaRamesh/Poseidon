@@ -8,6 +8,10 @@ import datetime
 import argparse
 import os
 import json
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 def kaiming_weights_init(m):
     if isinstance(m, nn.Linear):
@@ -105,6 +109,7 @@ def print_evaluation_metric(epoch, predicted_labels, true_labels, total_losses, 
         print(f"Epoch: {epoch} | Total Training Loss: {total_loss} | Pose Training Loss: {pose_loss} | Action Training Loss: {action_loss} | Action Train Label Accuracy: {accuracy}")
 
 def save_model(epoch, model, optimizer, scheduler):
+    logging.info(f'Saving model current state')
     state_dict = {
         'optimizer': optimizer.state_dict(),
         'model': model.state_dict(),
@@ -130,13 +135,17 @@ def training_loop(args):
     EPOCH_REPORT = args.epoch_report
     DEVICE = 'cuda' if torch.cuda.is_available() else ('mps' if torch.backends.mps.is_available() else 'cpu') 
 
+    logging.info(f'Model is currently using : {DEVICE}')
+
     paths = [SAVE_PATH]
     for path in paths:
         if not os.path.exists(path):
+            logging.info(f'Creating Missing Paths: {path}')
             os.makedirs(SAVE_PATH)
 
     # Save current args to output
     with open(f"{SAVE_PATH}/argsparse_config.json", 'w') as file:
+        logging.info(f'Saving config')
         json.dump(vars(args), file)
         file.close()
     
@@ -147,6 +156,8 @@ def training_loop(args):
     testing_data = Human36MLoader(TESTING_2D_DATA_PATH, TESTING_3D_DATA_PATH, TESTING_LABEL_PATH)
     test_dataloader = DataLoader(testing_data, batch_size=BATCH_SIZE, shuffle=True)
     
+    logging.info(f'Setup Training and Testing Dataloaders')
+    
     TOTAL_JOINTS = training_data.get_joint_numbers()
     TOTAL_ACTIONS = training_data.get_action_numbers()
     
@@ -155,17 +166,26 @@ def training_loop(args):
     # Apply Kaiming Init on Linear Layers
     model.apply(kaiming_weights_init)
     
+    logging.info(f'Setup SimplePose model with Kaiming Weights')
+    
     # Declare Optimizer
     optimizer = torch.optim.Adam(params=model.parameters(), lr=LEARNING_RATE)
 
+    logging.info(f'Setup Optimizer')
+    
     # Declare Scheduler
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.96) # Value used by the original authors
+
+    logging.info(f'Setup Scheduler')
 
     # Loss Function
     three_dim_pose_loss_fn = nn.MSELoss()
     action_label_loss_fn = nn.CrossEntropyLoss()
     
+    logging.info(f'Setup loss functions')
+    
     # Training and Testing Loop
+    logging.info(f'Start Training and Testing Loops')
     for epoch in tqdm(range(NUM_EPOCHS)):
         train_dict = {
             'model': model, 'dataloader': train_dataloader, 'device': DEVICE,  'optimizer': optimizer, 'three_dim_pose_loss_fn': three_dim_pose_loss_fn, 'action_label_loss_fn': action_label_loss_fn
@@ -189,10 +209,10 @@ if __name__ == '__main__':
     parser.add_argument('--epoch_report', type=int, default=10)
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--training_2d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_2d_poses.npy'))
-    parser.add_argument('--training_3d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_2d_poses.npy'))
+    parser.add_argument('--training_3d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_3d_poses.npy'))
     parser.add_argument('--training_label_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_actions.npy'))
     parser.add_argument('--testing_2d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'test_2d_poses.npy'))
-    parser.add_argument('--testing_3d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'test_2d_poses.npy'))
+    parser.add_argument('--testing_3d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'test_3d_poses.npy'))
     parser.add_argument('--testing_label_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'test_actions.npy'))
     parser.add_argument('--save_path', type=str, default=os.path.join('model_outputs', 'simple_pose', timestamp))
     args = parser.parse_args()
