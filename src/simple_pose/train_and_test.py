@@ -72,7 +72,7 @@ def test_once(test_dict):
     pose_losses = []
     action_losses = []
     
-    model.test()
+    model.eval()
     with torch.no_grad():
         for data in tqdm(dataloader):
             # Prepare Data
