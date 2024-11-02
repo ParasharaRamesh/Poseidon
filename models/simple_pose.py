@@ -30,6 +30,7 @@ class SimplePose(nn.Module):
             nn.Dropout(0.5),
         )
         self.output_3d_pose_linear = nn.Linear(1024, total_joints * 3) # 3D output shape is B x 16 x 3
+        
         self.output_label_linear = nn.Linear(1024, total_actions) # Predict Action Labels
         
     def forward(self, x):

@@ -1,7 +1,7 @@
 from models.simple_pose_gnn import SimplePoseGNN
 from torch import nn
 from torch.utils.data import DataLoader
-from dataloader.h36M_graph_loader import Human36MGraphDataset
+from dataloader.h36m_graph_loader import Human36MGraphDataset
 from tqdm import tqdm
 import dgl
 import torch
