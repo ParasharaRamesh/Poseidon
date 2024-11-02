@@ -27,11 +27,12 @@ class SemGraphConv(nn.Module):
 
             # Update edges and apply softmax
             graph.edata['e'] = graph.edata['feat']
-            graph.edata['e'] = F.softmax(graph.edata['e'], dim=1)
+            # graph.edata['e'] = F.softmax(graph.edata['e'], dim=1) #TODO.x check later
+            graph.edata['e'] = F.softmax(graph.edata['e'])
 
             # Message Passing for h0
-            graph.update_all(dgl.fn.u_mul_e('h0', 'e', 'm'), dgl.fn.sum('m', 'h0_output'))
-            graph.update_all(dgl.fn.u_mul_e('h1', 'e', 'm'), dgl.fn.sum('m', 'h1_output'))
+            graph.update_all(dgl.function.u_mul_e('h0', 'e', 'm'), dgl.function.sum('m', 'h0_output'))
+            graph.update_all(dgl.function.u_mul_e('h1', 'e', 'm'), dgl.function.sum('m', 'h1_output'))
 
             output = graph.ndata['h0_output'] + graph.ndata['h1_output'] + self.bias
 
@@ -39,13 +40,14 @@ class SemGraphConv(nn.Module):
             
 class GraphConv(nn.Module):
     def __init__(self, input_dim, output_dim):
+        super(GraphConv, self).__init__()
         self.graph_conv = SemGraphConv(input_dim, output_dim)
         self.batch_norm = nn.BatchNorm1d(output_dim)
         self.relu = nn.ReLU()
 
     def forward(self, graph, h):
-        h = self.graph_conv(graph, h).transpose(1, 2)
-        h = self.batch_norm(h).transpose(1, 2)
+        h = self.graph_conv(graph, h)
+        h = self.batch_norm(h)
         h = self.relu(h)
         return h
     
@@ -66,17 +68,20 @@ class SemGCN(nn.Module):
     def __init__(self, input_dim, output_dim, hid_dim, num_layers=4, num_classes=15):
         super(SemGCN, self).__init__()
         self.input_layer = GraphConv(input_dim, hid_dim)
-        layers = []
+
+        self.residual_layers = []
         for _ in range(num_layers):
-            layers.append(ResidualGraphConv(hid_dim, hid_dim, hid_dim))
+            self.residual_layers.append(ResidualGraphConv(hid_dim, hid_dim, hid_dim))
         
-        self.residual_layers = nn.Sequential(*layers)
         self.output_layer = SemGraphConv(hid_dim, output_dim)
-        self.classification_layer = nn.Linear(hid_dim, num_classes)
+        self.classifier = nn.Linear(hid_dim, num_classes)
     
     def forward(self, graph, node_features):
         h = self.input_layer(graph, node_features)
-        h = self.residual_layers(graph, h)
+
+        for residual_layer in self.residual_layers:
+            h = residual_layer(graph, h)
+
         output = self.output_layer(graph, h)
         graph.ndata['h'] = h
         y = dgl.mean_nodes(graph, 'h')

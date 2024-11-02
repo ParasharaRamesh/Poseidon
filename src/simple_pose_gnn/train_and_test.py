@@ -5,7 +5,7 @@ from dataloader.h36m_graph_loader import Human36MGraphDataset
 from tqdm import tqdm
 import dgl
 import torch
-import datetime
+from datetime import datetime
 import argparse
 import os
 import json

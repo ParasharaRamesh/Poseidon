@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from dataloader.h36M_loader import Human36MLoader
 from tqdm import tqdm
 import torch
-import datetime
+from datetime import datetime
 import argparse
 import os
 import json
