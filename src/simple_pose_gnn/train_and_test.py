@@ -140,7 +140,7 @@ def training_loop(args):
     BATCH_SIZE = args.batch_size
     NUM_EPOCHS = args.num_epochs
     EPOCH_REPORT = args.epoch_report
-    DEVICE = 'cuda' if torch.cuda.is_available() else ('mps' if torch.backends.mps.is_available() else 'cpu') 
+    DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu' # DGL does not support MPS at the moment.
 
     logging.info(f'Model is currently using : {DEVICE}')
 
