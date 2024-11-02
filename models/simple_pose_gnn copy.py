@@ -9,18 +9,20 @@ class SimplePoseGNN(nn.Module):
         super(SimplePoseGNN, self).__init__()
         self.embedding = nn.Linear(input_dim, hidden_size)
         self.conv1 = dglnn.GraphConv(hidden_size, hidden_size)
-        self.batch_norm1d = nn.BatchNorm1d(hidden_size)
         self.conv2 = dglnn.GraphConv(hidden_size, output_dim)
+        
         self.classifier = nn.Linear(output_dim, num_classes)
         
     def forward(self, graph, node_features):
         # Convert Node features into Node Embeddings using Linear Layer
-        x = self.embedding(node_features)
+        h = self.embedding(node_features)
+        h = h + self.LL(2d_pos)
         # Perform Graph Convolutions with ReLU
-        h = x + self.conv1(graph, self.LN(h))
-        h = self.batch_norm1d(h)
+ 
+        h = h + self.conv1(graph, self.LN(h))
+
         h = F.relu(h)
-        h = x + self.conv2(graph, h)
+        h = self.conv2(graph, h)
         # Perform classification
         graph.ndata['h'] = h
         y = dgl.mean_nodes(graph, 'h')
