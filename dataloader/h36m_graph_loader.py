@@ -30,8 +30,8 @@ class Human36MGraphDataset(DGLDataset):
         two_dim_data, three_dim_data, label = self.two_dim_data[index], self.three_dim_data[index], self.labels[index]
         # Step 1: Define Graph
         # Edge Connections [Source & Destination] <-- Human Body Structure
-        human_pose_edge_src = torch.LongTensor([0, 0, 0, 1, 2, 4, 5, 7, 8, 8, 8, 10, 11, 8, 13, 14])
-        human_pose_edge_dst = torch.LongTensor([1, 4, 7, 2, 3, 5, 6, 8, 10, 13, 9, 11, 12, 13, 14, 15])
+        human_pose_edge_src = torch.LongTensor([0, 0, 0, 1, 2, 4, 5, 7, 8, 8, 8, 10, 11, 13, 14])
+        human_pose_edge_dst = torch.LongTensor([1, 4, 7, 2, 3, 5, 6, 8, 10, 13, 9, 11, 12, 14, 15])
         graph = dgl.graph((human_pose_edge_src, human_pose_edge_dst))
         graph = dgl.to_bidirected(graph)
         # Add node features
