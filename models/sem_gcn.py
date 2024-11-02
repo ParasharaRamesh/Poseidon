@@ -63,15 +63,15 @@ class ResidualGraphConv(nn.Module):
         return residual + output
 
 class SemGCN(nn.Module):
-    def __init__(self, hid_dim, coords_dim=(2, 3), num_layers=4, num_classes=15):
+    def __init__(self, input_dim, output_dim, hid_dim, num_layers=4, num_classes=15):
         super(SemGCN, self).__init__()
-        self.input_layer = GraphConv(coords_dim[0], hid_dim)
+        self.input_layer = GraphConv(input_dim, hid_dim)
         layers = []
         for _ in range(num_layers):
             layers.append(ResidualGraphConv(hid_dim, hid_dim, hid_dim))
         
         self.residual_layers = nn.Sequential(*layers)
-        self.output_layer = SemGraphConv(hid_dim, coords_dim[1])
+        self.output_layer = SemGraphConv(hid_dim, output_dim)
         self.classification_layer = nn.Linear(hid_dim, num_classes)
     
     def forward(self, graph, node_features):

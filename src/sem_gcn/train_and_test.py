@@ -169,10 +169,11 @@ def training_loop(args):
     INPUT_DIM = training_data[0][0].ndata['feat_2d'].shape[1]
     OUTPUT_DIM = training_data[0][0].ndata['feat_3d'].shape[1]
     HIDDEN_SIZE = 1024
+    NUM_LAYERS = 4
     
     # Declare Model
-    model = SimplePoseGNN(INPUT_DIM, OUTPUT_DIM, HIDDEN_SIZE, NUM_LABELS).to(DEVICE)
-    logging.info(f'Setup SimplePoseGNN model')
+    model = SemGCN(INPUT_DIM, OUTPUT_DIM, HIDDEN_SIZE, NUM_LAYERS, NUM_LABELS).to(DEVICE)
+    logging.info(f'Setup SemGCN model')
     logging.info(model)
     
     
@@ -206,7 +207,7 @@ def training_loop(args):
 
 if __name__ == '__main__':
     timestamp = datetime.now().strftime("%Y-%m-%d--%H-%M-%S")
-    parser = argparse.ArgumentParser(description='SimplePoseGNN Training Code')
+    parser = argparse.ArgumentParser(description='SemGCN Training Code')
     parser.add_argument('--learning_rate', default=1e-3)
     parser.add_argument('--num_epochs', type=int, default=200)
     parser.add_argument('--epoch_report', type=int, default=10)
