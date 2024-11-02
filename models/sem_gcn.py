@@ -27,7 +27,6 @@ class SemGraphConv(nn.Module):
 
             # Update edges and apply softmax
             graph.edata['e'] = graph.edata['feat']
-            # graph.edata['e'] = F.softmax(graph.edata['e'], dim=1) #TODO.x check later
             graph.edata['e'] = F.softmax(graph.edata['e'])
 
             # Message Passing for h0

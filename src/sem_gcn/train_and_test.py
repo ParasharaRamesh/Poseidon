@@ -158,10 +158,10 @@ def training_loop(args):
     
     # Prepare Training Data
     training_data = Human36MGraphDataset(TRAINING_2D_DATA_PATH, TRAINING_3D_DATA_PATH, TRAINING_LABEL_PATH)
-    train_dataloader = DataLoader(training_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=1, collate_fn=collate) #TODO.x change back to 20
+    train_dataloader = DataLoader(training_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=20, collate_fn=collate)
     # Prepare Testing Data
     testing_data = Human36MGraphDataset(TESTING_2D_DATA_PATH, TESTING_3D_DATA_PATH, TESTING_LABEL_PATH)
-    test_dataloader = DataLoader(testing_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=1, collate_fn=collate)
+    test_dataloader = DataLoader(testing_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=20, collate_fn=collate)
     
     logging.info(f'Setup Training and Testing Dataloaders')
     
@@ -211,7 +211,7 @@ if __name__ == '__main__':
     parser.add_argument('--learning_rate', default=1e-3)
     parser.add_argument('--num_epochs', type=int, default=200)
     parser.add_argument('--epoch_report', type=int, default=10)
-    parser.add_argument('--batch_size', type=int, default=4) #TODO.x change back to 64
+    parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--training_2d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_2d_poses.npy'))
     parser.add_argument('--training_3d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_3d_poses.npy'))
     parser.add_argument('--training_label_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_actions.npy'))
