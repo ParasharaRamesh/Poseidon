@@ -40,8 +40,8 @@ class Human36MGraphEdgeDataset(DGLDataset):
         # Add edge features
         src_pos = graph.ndata['feat_3d'][human_pose_edge_src]
         dst_pos = graph.ndata['feat_3d'][human_pose_edge_dst]
-        edge_distances = torch.norm(src_pos - dst_pos, dim=1)
-        graph.edata['feat'] = edge_distances
+        edge_distances = torch.norm(src_pos - dst_pos, dim=1) #euclidean distance
+        graph.edata['feat'] = torch.cat([edge_distances, edge_distances]) #its bidirectional so x2
         return [graph, label]
         
     def __len__(self):

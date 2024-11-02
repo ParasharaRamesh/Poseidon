@@ -7,9 +7,7 @@ import torch.nn.functional as F
 # Simple GNN Model
 class SimplePoseGAT(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_size, num_classes):
-        self.input_dim = input_dim
-        #TODO.x try adding positional embedding
-        # self.input_dim = input_dim + 2 # in case we want to incorporate positional encoding (x,y)
+        self.input_dim = input_dim + 2 # incorporate additional positional encoding (x,y)
         self.output_dim = output_dim
         self.hidden_size = hidden_size
         self.num_classes = num_classes
@@ -43,12 +41,10 @@ class SimplePoseGAT(nn.Module):
 
 
     def forward(self, graph, node_2d_features):
-        #TODO.x in case we want positional encoding
         # Concatenate 2D coordinates as positional embeddings
-        # pos_embeddings = graph.ndata['feat_2d']  # (x, y) coordinates
-        # h = torch.cat([node_2d_features, pos_embeddings], dim=1)  # Concatenate along feature dimension
+        pos_embeddings = graph.ndata['feat_2d']  # (x, y) coordinates
+        h = torch.cat([node_2d_features, pos_embeddings], dim=1)  # Concatenate along feature dimension
 
-        h = node_2d_features
         for i, layer in enumerate(self.gat_layers):
             h = layer(graph, h)
             if i == len(self.gat_layers) - 1:  # last layer

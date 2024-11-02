@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import dgl
 import torch
-import datetime
+from datetime import datetime
 import argparse
 import os
 import json
