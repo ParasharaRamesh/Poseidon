@@ -7,15 +7,16 @@ import math
 class SemGraphConv(nn.Module):
     def __init__(self, input_features, output_features):
         super(SemGraphConv, self).__init__()
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.input_features = input_features
         self.output_features = output_features
 
         self.e = None
 
-        self.weight = nn.Parameter(torch.zeros(size=(2, input_features, output_features)))
+        self.weight = nn.Parameter(torch.zeros(size=(2, input_features, output_features), device=device))
         nn.init.xavier_uniform_(self.weight.data, gain=1.414)
 
-        self.bias = nn.Parameter(torch.zeros(output_features))
+        self.bias = nn.Parameter(torch.zeros(output_features, device=device))
         std_v = 1.0 / math.sqrt(self.weight.size(2))
         self.bias.data.uniform_(-std_v, std_v)
 
