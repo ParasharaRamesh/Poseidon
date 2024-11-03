@@ -22,18 +22,18 @@ class SemGraphConv(nn.Module):
     def forward(self, graph, h):
         with graph.local_scope():
             # Prepare h0 and h1
-            graph.ndata['h0'] = torch.matmul(h, self.weight[0])
-            graph.ndata['h1'] = torch.matmul(h, self.weight[1])
+            graph.ndata['h0'] = torch.matmul(h, self.weight[0]).to(h.device)
+            graph.ndata['h1'] = torch.matmul(h, self.weight[1]).to(h.device)
 
             # Update edges and apply softmax
-            graph.edata['e'] = graph.edata['feat']
-            graph.edata['e'] = F.softmax(graph.edata['e'])
+            graph.edata['e'] = graph.edata['feat'].to(h.device)
+            graph.edata['e'] = F.softmax(graph.edata['e']).to(h.device)
 
             # Message Passing for h0
             graph.update_all(dgl.function.u_mul_e('h0', 'e', 'm'), dgl.function.sum('m', 'h0_output'))
             graph.update_all(dgl.function.u_mul_e('h1', 'e', 'm'), dgl.function.sum('m', 'h1_output'))
 
-            output = graph.ndata['h0_output'] + graph.ndata['h1_output'] + self.bias
+            output = graph.ndata['h0_output'].to(h.device) + graph.ndata['h1_output'].to(h.device) + self.bias.to(h.device)
 
             return output
             
