@@ -136,10 +136,10 @@ def training_loop(args):
     TESTING_2D_DATA_PATH = args.testing_2d_data_path
     TESTING_3D_DATA_PATH = args.testing_3d_data_path
     TESTING_LABEL_PATH = args.testing_label_path
-    LEARNING_RATE = args.learning_rate
-    BATCH_SIZE = args.batch_size
-    NUM_EPOCHS = args.num_epochs
-    EPOCH_REPORT = args.epoch_report
+    LEARNING_RATE = float(args.learning_rate)
+    BATCH_SIZE = int(args.batch_size)
+    NUM_EPOCHS = int(args.num_epochs)
+    EPOCH_REPORT = int(args.epoch_report)
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu' # DGL does not support MPS at the moment.
 
     logging.info(f'Model is currently using : {DEVICE}')
