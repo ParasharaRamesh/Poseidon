@@ -55,7 +55,7 @@ def train_once(train_dict):
         true_labels = action_labels if true_labels is None else torch.cat((true_labels, action_labels), axis=0)
         # Optimize Gradients and Update Learning Rate
         loss.backward()
-        optimizer.step()
+        # Prepare Data
     
     return predicted_labels, true_labels, total_losses, pose_losses, action_losses
 
@@ -183,12 +183,14 @@ def training_loop(args):
     
     # Training and Testing Loop
     logging.info(f'Start Training and Testing Loops')
-    for epoch in tqdm(range(NUM_EPOCHS)):
+    for epoch in range(NUM_EPOCHS):
+        print(f"Starting EPOCH: {epoch + 1} / {NUM_EPOCHS}")
         train_dict = {
             'model': model, 'dataloader': train_dataloader, 'device': DEVICE,  'optimizer': optimizer, 'three_dim_pose_loss_fn': three_dim_pose_loss_fn, 'action_label_loss_fn': action_label_loss_fn
         }
         train_predicted_labels, train_true_labels, train_total_losses, train_pose_losses, train_action_losses = train_once(train_dict)
         if epoch % EPOCH_REPORT == 0 or epoch == NUM_EPOCHS - 1:
+            print(f"Saving at epoch {epoch}")
             print_evaluation_metric(epoch, train_predicted_labels, train_true_labels, train_total_losses, train_pose_losses, train_action_losses, 'train')
             test_dict = {
                 'model': model, 'dataloader': test_dataloader, 'device': DEVICE, 'three_dim_pose_loss_fn': three_dim_pose_loss_fn, 'action_label_loss_fn': action_label_loss_fn

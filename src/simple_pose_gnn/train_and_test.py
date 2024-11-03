@@ -36,9 +36,8 @@ def train_once(train_dict):
     action_losses = []
     
     model.train()
-    progress_bar = tqdm(enumerate(dataloader))
-    for index, (batch_graphs, batch_labels) in progress_bar:
-        progress_bar.set_description(f" {index + 1} / {len(dataloader)}")
+    progress_bar = tqdm(total=len(dataloader), desc="Training =>")
+    for index, (batch_graphs, batch_labels) in enumerate(dataloader):
         # Prepare Data
         batch_graphs = batch_graphs.to(torch.device(device))
         batch_2d = batch_graphs.ndata['feat_2d']
@@ -61,6 +60,8 @@ def train_once(train_dict):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        progress_bar.update(1)
+    progress_bar.close()
     
     return predicted_labels, true_labels, total_losses, pose_losses, action_losses
 
@@ -80,9 +81,7 @@ def test_once(test_dict):
     model.eval()
     with torch.no_grad():
         progress_bar = tqdm(enumerate(dataloader))
-        for index, (batch_graphs, batch_labels) in progress_bar:
-            progress_bar.set_description(f" {index + 1} / {len(dataloader)}")
-            progress_bar.set_description(f" {index + 1} / {len(dataloader)}")
+        for index, (batch_graphs, batch_labels) in enumerate(dataloader):
             # Prepare Data
             batch_graphs = batch_graphs.to(torch.device(device))
             batch_2d = batch_graphs.ndata['feat_2d']
@@ -101,7 +100,9 @@ def test_once(test_dict):
             predicted_action_labels = torch.argmax(predicted_action_labels, axis=1)
             predicted_labels = predicted_action_labels if predicted_labels is None else torch.cat((predicted_labels, predicted_action_labels), axis=0)
             true_labels = batch_labels if true_labels is None else torch.cat((true_labels, batch_labels), axis=0)
-
+            progress_bar.update(1)
+        progress_bar.close()
+        
     return predicted_labels, true_labels, total_losses, pose_losses, action_losses
 
 def print_evaluation_metric(epoch, predicted_labels, true_labels, total_losses, pose_losses, action_losses, mode):
@@ -189,12 +190,14 @@ def training_loop(args):
     
     # Training and Testing Loop
     logging.info(f'Start Training and Testing Loops')
-    for epoch in tqdm(range(NUM_EPOCHS)):
+    for epoch in range(NUM_EPOCHS):
+        print(f"Starting EPOCH: {epoch + 1} / {NUM_EPOCHS}")
         train_dict = {
             'model': model, 'dataloader': train_dataloader, 'device': DEVICE,  'optimizer': optimizer, 'three_dim_pose_loss_fn': three_dim_pose_loss_fn, 'action_label_loss_fn': action_label_loss_fn
         }
         train_predicted_labels, train_true_labels, train_total_losses, train_pose_losses, train_action_losses = train_once(train_dict)
         if epoch % EPOCH_REPORT == 0 or epoch == NUM_EPOCHS - 1:
+            print(f"Saving at epoch {epoch}")
             print_evaluation_metric(epoch, train_predicted_labels, train_true_labels, train_total_losses, train_pose_losses, train_action_losses, 'train')
             test_dict = {
                 'model': model, 'dataloader': test_dataloader, 'device': DEVICE, 'three_dim_pose_loss_fn': three_dim_pose_loss_fn, 'action_label_loss_fn': action_label_loss_fn
