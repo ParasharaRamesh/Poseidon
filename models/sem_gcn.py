@@ -43,10 +43,11 @@ class GraphConv(nn.Module):
         super(GraphConv, self).__init__()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.graph_conv = SemGraphConv(input_dim, output_dim)
-        self.batch_norm = nn.BatchNorm1d(output_dim)
+        self.batch_norm = nn.BatchNorm1d(output_dim).to(self.device)
         self.relu = nn.ReLU()
 
     def forward(self, graph, h):
+        h = h.to(self.device)
         h = self.graph_conv(graph, h).to(self.device)
         h = self.batch_norm(h).to(self.device)
         h = self.relu(h).to(self.device)
@@ -60,6 +61,7 @@ class ResidualGraphConv(nn.Module):
         self.gconv2 = GraphConv(hidden_dim, output_dim)
 
     def forward(self, graph, h):
+        h = h.to(self.device)
         residual = h
         output = self.gconv1(graph, h).to(self.device)
         output = self.gconv2(graph, output).to(self.device)
@@ -79,6 +81,7 @@ class SemGCN(nn.Module):
     
     def forward(self, graph, node_features):
         h = self.input_layer(graph, node_features).to(self.device)
+        h = h.to(self.device)
 
         for residual_layer in self.residual_layers:
             h = residual_layer(graph, h).to(self.device)
