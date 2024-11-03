@@ -130,6 +130,7 @@ def save_model(epoch, model, optimizer):
     torch.save(state_dict, os.path.join(weight_save_path, f'weights_{epoch}.pth'))
 
 def training_loop(args):
+    print(f"Training args are: {args}")
     SAVE_PATH = args.save_path
     TRAINING_2D_DATA_PATH = args.training_2d_data_path
     TRAINING_3D_DATA_PATH = args.training_3d_data_path
