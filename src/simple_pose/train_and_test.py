@@ -55,7 +55,7 @@ def train_once(train_dict):
         true_labels = action_labels if true_labels is None else torch.cat((true_labels, action_labels), axis=0)
         # Optimize Gradients and Update Learning Rate
         loss.backward()
-        # Prepare Data
+        optimizer.step()
     
     return predicted_labels, true_labels, total_losses, pose_losses, action_losses
 
