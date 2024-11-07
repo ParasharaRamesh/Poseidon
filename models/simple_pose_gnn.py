@@ -30,6 +30,28 @@ class SimplePoseGNN(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.6),
         )
+        
+        self.conv_3 = dglnn.GraphConv(hidden_size, hidden_size)
+
+        self.block_3 = nn.Sequential(
+            nn.BatchNorm1d(hidden_size),
+            nn.ReLU(),
+            nn.Dropout(0.6),
+            nn.BatchNorm1d(hidden_size),
+            nn.ReLU(),
+            nn.Dropout(0.6),
+        )
+        
+        self.conv_4 = dglnn.GraphConv(hidden_size, hidden_size)
+
+        self.block_4 = nn.Sequential(
+            nn.BatchNorm1d(hidden_size),
+            nn.ReLU(),
+            nn.Dropout(0.6),
+            nn.BatchNorm1d(hidden_size),
+            nn.ReLU(),
+            nn.Dropout(0.6),
+        )
 
         self.output_layer_3d = nn.Linear(hidden_size, output_dim)
 
@@ -54,6 +76,12 @@ class SimplePoseGNN(nn.Module):
         x = h
         h = self.conv_2(graph, h)
         h = x + self.block_2(h)
+        x = h
+        h = self.conv_3(graph, h)
+        h = x + self.block_3(h)
+        x = h
+        h = self.conv_4(graph, h)
+        h = x + self.block_4(h)
         h = self.output_layer_3d(h)
         # Classifier
         # Perform classification

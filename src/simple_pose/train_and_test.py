@@ -134,7 +134,6 @@ def training_loop(args):
     LEARNING_RATE = float(args.learning_rate)
     BATCH_SIZE = int(args.batch_size)
     NUM_EPOCHS = int(args.num_epochs)
-    EPOCH_REPORT = int(args.epoch_report)
     DEVICE = 'cuda' if torch.cuda.is_available() else ('mps' if torch.backends.mps.is_available() else 'cpu') 
 
     logging.info(f'Model is currently using : {DEVICE}')
@@ -228,7 +227,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='SimplePose Training Code')
     parser.add_argument('--learning_rate', default=1e-3)
     parser.add_argument('--num_epochs', type=int, default=1000)
-    parser.add_argument('--epoch_report', type=int, default=10)
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--training_2d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_2d_poses.npy'))
     parser.add_argument('--training_3d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_3d_poses.npy'))
