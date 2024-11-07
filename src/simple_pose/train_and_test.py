@@ -109,18 +109,20 @@ def print_evaluation_metric(epoch, predicted_labels, true_labels, total_losses, 
         
     return pose_loss, action_loss, total_loss, accuracy
 
-def save_model(save_path, epoch, model, optimizer, scheduler):
+def save_model(save_path, epoch, model, optimizer, scheduler, train_output_dict, test_output_dict):
     logging.info(f'Saving model current state')
     state_dict = {
         'optimizer': optimizer.state_dict(),
         'model': model.state_dict(),
         'scheduler': scheduler.state_dict(),
+        'train_outputs': train_output_dict,
+        'test_outputs': test_output_dict
     }
     weight_save_path = os.path.join(save_path, 'weights', 'simple_pose')
     if not os.path.exists(weight_save_path):
         os.makedirs(weight_save_path)
 
-    torch.save(state_dict, os.path.join(weight_save_path, f'weights_{epoch}.pth'))
+    torch.save(state_dict, os.path.join(weight_save_path, f'weights.pth'))
 
 def training_loop(args):
     print(f"Training args are: {args}")
@@ -204,20 +206,20 @@ def training_loop(args):
         train_predicted_labels, train_true_labels, train_total_losses, train_pose_losses, train_action_losses = train_once(train_dict)
         print(f"Saving at epoch {epoch}")
         train_pose_loss, train_action_loss, train_total_loss, train_accuracy = print_evaluation_metric(epoch, train_predicted_labels, train_true_labels, train_total_losses, train_pose_losses, train_action_losses, 'train')
-        train_output_dict['pose_losses'].append(train_pose_loss)
-        train_output_dict['label_losses'].append(train_action_loss)
-        train_output_dict['total_losses'].append(train_total_loss)
+        train_output_dict['pose_losses'].append(train_pose_loss.detach().cpu().numpy())
+        train_output_dict['label_losses'].append(train_action_loss.detach().cpu().numpy())
+        train_output_dict['total_losses'].append(train_total_loss.detach().cpu().numpy())
         train_output_dict['accuracies'].append(train_accuracy)
         test_dict = {
             'model': model, 'dataloader': test_dataloader, 'device': DEVICE, 'three_dim_pose_loss_fn': three_dim_pose_loss_fn, 'action_label_loss_fn': action_label_loss_fn
         }
         test_predicted_labels, test_true_labels, test_total_losses, test_pose_losses, test_action_losses = test_once(test_dict)
         test_pose_loss, test_action_loss, test_total_loss, test_accuracy = print_evaluation_metric(epoch, test_predicted_labels, test_true_labels, test_total_losses, test_pose_losses, test_action_losses, 'test')
-        test_output_dict['pose_losses'].append(test_pose_loss)
-        test_output_dict['label_losses'].append(test_action_loss)
-        test_output_dict['total_losses'].append(test_total_loss)
+        test_output_dict['pose_losses'].append(test_pose_loss.detach().cpu().numpy())
+        test_output_dict['label_losses'].append(test_action_loss.detach().cpu().numpy())
+        test_output_dict['total_losses'].append(test_total_loss.detach().cpu().numpy())
         test_output_dict['accuracies'].append(test_accuracy)
-        save_model(SAVE_PATH, epoch, model, optimizer, scheduler)
+        save_model(SAVE_PATH, epoch, model, optimizer, scheduler, train_output_dict, test_output_dict)
         scheduler.step()
     
     return train_output_dict, test_output_dict
