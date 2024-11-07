@@ -38,13 +38,11 @@ def train_once(train_dict):
         two_dim_input_data = two_dim_input_data.to(device)
         three_dim_output_data = three_dim_output_data.to(device)
         action_labels = action_labels.to(device)
-        # Set Gradients to 0
-        optimizer.zero_grad()
         # Train Model
         predicted_3d_pose_estimations, predicted_action_labels = model(two_dim_input_data)
         # Calculate Loss
-        three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
-        action_label_loss = action_label_loss_fn(predicted_action_labels, action_labels)
+        three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data) / 1000
+        action_label_loss = 1000 * action_label_loss_fn(predicted_action_labels, action_labels) 
         loss = three_dim_pose_estimation_loss + action_label_loss
         # Store Results
         total_losses.append(loss)
@@ -54,6 +52,7 @@ def train_once(train_dict):
         predicted_labels = predicted_action_labels if predicted_labels is None else torch.cat((predicted_labels, predicted_action_labels), axis=0)
         true_labels = action_labels if true_labels is None else torch.cat((true_labels, action_labels), axis=0)
         # Optimize Gradients and Update Learning Rate
+        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
     
@@ -83,8 +82,8 @@ def test_once(test_dict):
             # Predict with model
             predicted_3d_pose_estimations, predicted_action_labels = model(two_dim_input_data)
             # Calculate Loss
-            three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
-            action_label_loss = action_label_loss_fn(predicted_action_labels, action_labels)
+            three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data) / 1000
+            action_label_loss = 1000 * action_label_loss_fn(predicted_action_labels, action_labels) 
             loss = three_dim_pose_estimation_loss + action_label_loss
             # Store Results
             total_losses.append(loss)
@@ -107,6 +106,8 @@ def print_evaluation_metric(epoch, predicted_labels, true_labels, total_losses, 
         print(f"Epoch: {epoch} | Total Testing Loss: {total_loss} | Pose Testing Loss: {pose_loss} | Action Testing Loss: {action_loss} | Action Test Label Accuracy: {accuracy}")
     elif mode == 'train':
         print(f"Epoch: {epoch} | Total Training Loss: {total_loss} | Pose Training Loss: {pose_loss} | Action Training Loss: {action_loss} | Action Train Label Accuracy: {accuracy}")
+        
+    return pose_loss, action_loss, total_loss, accuracy
 
 def save_model(epoch, model, optimizer, scheduler):
     logging.info(f'Saving model current state')
@@ -184,29 +185,49 @@ def training_loop(args):
     
     # Training and Testing Loop
     logging.info(f'Start Training and Testing Loops')
+    test_output_dict = {
+        'pose_losses': [],
+        'label_losses': [],
+        'accuracies': [],
+        'total_losses': []
+    }
+    train_output_dict = {
+        'pose_losses': [],
+        'label_losses': [],
+        'accuracies': [],
+        'total_losses': []
+    }
     for epoch in range(NUM_EPOCHS):
         print(f"Starting EPOCH: {epoch + 1} / {NUM_EPOCHS}")
         train_dict = {
             'model': model, 'dataloader': train_dataloader, 'device': DEVICE,  'optimizer': optimizer, 'three_dim_pose_loss_fn': three_dim_pose_loss_fn, 'action_label_loss_fn': action_label_loss_fn
         }
         train_predicted_labels, train_true_labels, train_total_losses, train_pose_losses, train_action_losses = train_once(train_dict)
-        if epoch % EPOCH_REPORT == 0 or epoch == NUM_EPOCHS - 1:
-            print(f"Saving at epoch {epoch}")
-            print_evaluation_metric(epoch, train_predicted_labels, train_true_labels, train_total_losses, train_pose_losses, train_action_losses, 'train')
-            test_dict = {
-                'model': model, 'dataloader': test_dataloader, 'device': DEVICE, 'three_dim_pose_loss_fn': three_dim_pose_loss_fn, 'action_label_loss_fn': action_label_loss_fn
-            }
-            test_predicted_labels, test_true_labels, test_total_losses, test_pose_losses, test_action_losses = test_once(test_dict)
-            print_evaluation_metric(epoch, test_predicted_labels, test_true_labels, test_total_losses, test_pose_losses, test_action_losses, 'test')
-            
-            save_model(epoch, model, optimizer, scheduler)
+        print(f"Saving at epoch {epoch}")
+        train_pose_loss, train_action_loss, train_total_loss, train_accuracy = print_evaluation_metric(epoch, train_predicted_labels, train_true_labels, train_total_losses, train_pose_losses, train_action_losses, 'train')
+        train_output_dict['pose_losses'].append(train_pose_loss)
+        train_output_dict['label_losses'].append(train_action_loss)
+        train_output_dict['total_losses'].append(train_total_loss)
+        train_output_dict['accuracies'].append(train_accuracy)
+        test_dict = {
+            'model': model, 'dataloader': test_dataloader, 'device': DEVICE, 'three_dim_pose_loss_fn': three_dim_pose_loss_fn, 'action_label_loss_fn': action_label_loss_fn
+        }
+        test_predicted_labels, test_true_labels, test_total_losses, test_pose_losses, test_action_losses = test_once(test_dict)
+        test_pose_loss, test_action_loss, test_total_loss, test_accuracy = print_evaluation_metric(epoch, test_predicted_labels, test_true_labels, test_total_losses, test_pose_losses, test_action_losses, 'test')
+        test_output_dict['pose_losses'].append(test_pose_loss)
+        test_output_dict['label_losses'].append(test_action_loss)
+        test_output_dict['total_losses'].append(test_total_loss)
+        test_output_dict['accuracies'].append(test_accuracy)
+        save_model(epoch, model, optimizer, scheduler)
         scheduler.step()
+    
+    return train_output_dict, test_output_dict
 
 if __name__ == '__main__':
     timestamp = datetime.now().strftime("%Y-%m-%d--%H-%M-%S")
     parser = argparse.ArgumentParser(description='SimplePose Training Code')
     parser.add_argument('--learning_rate', default=1e-3)
-    parser.add_argument('--num_epochs', type=int, default=200)
+    parser.add_argument('--num_epochs', type=int, default=1000)
     parser.add_argument('--epoch_report', type=int, default=10)
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--training_2d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_2d_poses.npy'))
