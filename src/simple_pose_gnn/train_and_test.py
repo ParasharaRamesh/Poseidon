@@ -46,8 +46,8 @@ def train_once(train_dict):
         # Train Model
         predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
         # Calculate Loss
-        three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
-        action_label_loss = action_label_loss_fn(predicted_action_labels, batch_labels)
+        three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d) / 1000
+        action_label_loss = 1000 * action_label_loss_fn(predicted_action_labels, batch_labels)
         loss = three_dim_pose_estimation_loss + action_label_loss
         # Store Results
         total_losses.append(loss)
@@ -90,8 +90,8 @@ def test_once(test_dict):
             # Train Model
             predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
             # Calculate Loss
-            three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
-            action_label_loss = action_label_loss_fn(predicted_action_labels, batch_labels)
+            three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d) / 1000
+            action_label_loss = 1000 * action_label_loss_fn(predicted_action_labels, batch_labels)
             loss = three_dim_pose_estimation_loss + action_label_loss
             # Store Results
             total_losses.append(loss)
@@ -116,6 +116,8 @@ def print_evaluation_metric(epoch, predicted_labels, true_labels, total_losses, 
         print(f"Epoch: {epoch} | Total Testing Loss: {total_loss} | Pose Testing Loss: {pose_loss} | Action Testing Loss: {action_loss} | Action Test Label Accuracy: {accuracy}")
     elif mode == 'train':
         print(f"Epoch: {epoch} | Total Training Loss: {total_loss} | Pose Training Loss: {pose_loss} | Action Training Loss: {action_loss} | Action Train Label Accuracy: {accuracy}")
+
+    return pose_loss, action_loss, total_loss, accuracy
 
 def save_model(epoch, model, optimizer):
     logging.info(f'Saving model current state')
@@ -177,7 +179,6 @@ def training_loop(args):
     logging.info(f'Setup SimplePoseGNN model')
     logging.info(model)
     
-    
     # Declare Optimizer
     optimizer = torch.optim.Adam(params=model.parameters(), lr=LEARNING_RATE)
 
@@ -188,7 +189,18 @@ def training_loop(args):
     action_label_loss_fn = nn.CrossEntropyLoss()
     
     logging.info(f'Setup loss functions')
-    
+    test_output_dict = {
+        'pose_losses': [],
+        'label_losses': [],
+        'accuracies': [],
+        'total_losses': []
+    }
+    train_output_dict = {
+        'pose_losses': [],
+        'label_losses': [],
+        'accuracies': [],
+        'total_losses': []
+    }
     # Training and Testing Loop
     logging.info(f'Start Training and Testing Loops')
     for epoch in range(NUM_EPOCHS):
@@ -197,16 +209,24 @@ def training_loop(args):
             'model': model, 'dataloader': train_dataloader, 'device': DEVICE,  'optimizer': optimizer, 'three_dim_pose_loss_fn': three_dim_pose_loss_fn, 'action_label_loss_fn': action_label_loss_fn
         }
         train_predicted_labels, train_true_labels, train_total_losses, train_pose_losses, train_action_losses = train_once(train_dict)
-        if epoch % EPOCH_REPORT == 0 or epoch == NUM_EPOCHS - 1:
-            print(f"Saving at epoch {epoch}")
-            print_evaluation_metric(epoch, train_predicted_labels, train_true_labels, train_total_losses, train_pose_losses, train_action_losses, 'train')
-            test_dict = {
-                'model': model, 'dataloader': test_dataloader, 'device': DEVICE, 'three_dim_pose_loss_fn': three_dim_pose_loss_fn, 'action_label_loss_fn': action_label_loss_fn
-            }
-            test_predicted_labels, test_true_labels, test_total_losses, test_pose_losses, test_action_losses = test_once(test_dict)
-            print_evaluation_metric(epoch, test_predicted_labels, test_true_labels, test_total_losses, test_pose_losses, test_action_losses, 'test')
-            
-            save_model(epoch, model, optimizer)
+        print(f"Saving at epoch {epoch}")
+        train_pose_loss, train_action_loss, train_total_loss, train_accuracy = print_evaluation_metric(epoch, train_predicted_labels, train_true_labels, train_total_losses, train_pose_losses, train_action_losses, 'train')
+        train_output_dict['pose_losses'].append(train_pose_loss)
+        train_output_dict['label_losses'].append(train_action_loss)
+        train_output_dict['total_losses'].append(train_total_loss)
+        train_output_dict['accuracies'].append(train_accuracy)
+        test_dict = {
+            'model': model, 'dataloader': test_dataloader, 'device': DEVICE, 'three_dim_pose_loss_fn': three_dim_pose_loss_fn, 'action_label_loss_fn': action_label_loss_fn
+        }
+        test_predicted_labels, test_true_labels, test_total_losses, test_pose_losses, test_action_losses = test_once(test_dict)
+        test_pose_loss, test_action_loss, test_total_loss, test_accuracy = print_evaluation_metric(epoch, test_predicted_labels, test_true_labels, test_total_losses, test_pose_losses, test_action_losses, 'test')
+        test_output_dict['pose_losses'].append(test_pose_loss)
+        test_output_dict['label_losses'].append(test_action_loss)
+        test_output_dict['total_losses'].append(test_total_loss)
+        test_output_dict['accuracies'].append(test_accuracy)
+        save_model(epoch, model, optimizer)
+    
+    return train_output_dict, test_output_dict
 
 if __name__ == '__main__':
     timestamp = datetime.now().strftime("%Y-%m-%d--%H-%M-%S")
