@@ -46,8 +46,8 @@ def train_once(train_dict):
         # Train Model
         predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
         # Calculate Loss
-        three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
-        action_label_loss = action_label_loss_fn(predicted_action_labels, batch_labels)
+        three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d) / 1000
+        action_label_loss = 1000 * action_label_loss_fn(predicted_action_labels, batch_labels)
         loss = three_dim_pose_estimation_loss + action_label_loss
         # Store Results
         total_losses.append(loss)
@@ -90,8 +90,8 @@ def test_once(test_dict):
             # Train Model
             predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
             # Calculate Loss
-            three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
-            action_label_loss = action_label_loss_fn(predicted_action_labels, batch_labels)
+            three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d) / 1000
+            action_label_loss = 1000 * action_label_loss_fn(predicted_action_labels, batch_labels)
             loss = three_dim_pose_estimation_loss + action_label_loss
             # Store Results
             total_losses.append(loss)

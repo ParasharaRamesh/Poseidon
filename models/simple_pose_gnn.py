@@ -8,35 +8,58 @@ class SimplePoseGNN(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_size, num_classes):
         super(SimplePoseGNN, self).__init__()
         self.embedding = nn.Linear(input_dim, hidden_size)
-        self.conv1 = dglnn.GraphConv(hidden_size, hidden_size)
-        self.batch_norm1d = nn.BatchNorm1d(hidden_size)
-        self.linear_layer_2 = nn.Linear(hidden_size, hidden_size)
-        self.conv2 = dglnn.GraphConv(hidden_size, hidden_size)
-        self.batch_norm1d_2 = nn.BatchNorm1d(hidden_size, hidden_size)
-        self.linear_layer_3 = nn.Linear(hidden_size, output_dim)
-        self.classifier = nn.Linear(output_dim, num_classes)
+
+        self.conv_1 = dglnn.GraphConv(hidden_size, hidden_size)
+
+        self.block_1 = nn.Sequential(
+            nn.BatchNorm1d(hidden_size),
+            nn.ReLU(),
+            nn.Dropout(0.6),
+            nn.BatchNorm1d(hidden_size),
+            nn.ReLU(),
+            nn.Dropout(0.6),
+        )
+
+        self.conv_2 = dglnn.GraphConv(hidden_size, hidden_size)
+
+        self.block_2 = nn.Sequential(
+            nn.BatchNorm1d(hidden_size),
+            nn.ReLU(),
+            nn.Dropout(0.6),
+            nn.BatchNorm1d(hidden_size),
+            nn.ReLU(),
+            nn.Dropout(0.6),
+        )
+
+        self.output_layer_3d = nn.Linear(hidden_size, output_dim)
+
+        self.classification_input = nn.Linear(output_dim, hidden_size)
+        self.block_3 = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size),
+            nn.BatchNorm1d(hidden_size),
+            nn.ReLU(),
+            nn.Dropout(0.7),
+            nn.Linear(hidden_size, hidden_size),
+            nn.BatchNorm1d(hidden_size),
+            nn.ReLU(),
+            nn.Dropout(0.7),
+        )
+        self.classifier = nn.Linear(hidden_size, num_classes)
         
     def forward(self, graph, node_features):
-        # Convert Node features into Node Embeddings using Linear Layer
+        # 3D Pose Estimation
         x = self.embedding(node_features)
-        # Perform Graph Convolutions with ReLU
-        h = x + self.conv1(graph, x)
-        # Batch Norm
-        h = self.batch_norm1d(h)
-        # Non Linearality
-        h = F.relu(h)
-        # Linearize
-        h = self.linear_layer_2(h)
-        # Graph Convolution
-        h = x + self.conv2(graph, h)
-        # Batch Norm
-        h = self.batch_norm1d_2(h)
-        # Relu
-        h = F.relu(h)
-        # Output Layer
-        h = self.linear_layer_3(h)
+        h = self.conv_1(graph, x)
+        h = x + self.block_1(h)
+        x = h
+        h = self.conv_2(graph, h)
+        h = x + self.block_2(h)
+        h = self.output_layer_3d(h)
+        # Classifier
         # Perform classification
         graph.ndata['h'] = h
-        y = dgl.mean_nodes(graph, 'h')
-        label = self.classifier(y)
+        x = dgl.mean_nodes(graph, 'h')
+        x = self.classification_input(x)
+        x = self.block_3(x)
+        label = self.classifier(x)
         return h, label
