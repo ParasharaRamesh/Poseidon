@@ -46,8 +46,8 @@ def train_once(train_dict):
         # Train Model
         predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
         # Calculate Loss
-        three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d) / 1000
-        action_label_loss = 1000 * action_label_loss_fn(predicted_action_labels, batch_labels)
+        three_dim_pose_estimation_loss = 0.1 * three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
+        action_label_loss = 0.9 * action_label_loss_fn(predicted_action_labels, batch_labels)
         loss = three_dim_pose_estimation_loss + action_label_loss
         # Store Results
         total_losses.append(loss)
@@ -90,8 +90,8 @@ def test_once(test_dict):
             # Train Model
             predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
             # Calculate Loss
-            three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d) / 1000
-            action_label_loss = 1000 * action_label_loss_fn(predicted_action_labels, batch_labels)
+            three_dim_pose_estimation_loss = 0.1 * three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
+            action_label_loss = 0.9 * action_label_loss_fn(predicted_action_labels, batch_labels)
             loss = three_dim_pose_estimation_loss + action_label_loss
             # Store Results
             total_losses.append(loss)
@@ -119,7 +119,7 @@ def print_evaluation_metric(epoch, predicted_labels, true_labels, total_losses, 
 
     return pose_loss, action_loss, total_loss, accuracy
 
-def save_model(save_path, epoch, model, optimizer, train_output_dict, test_output_dict):
+def save_model(save_path, model, optimizer, train_output_dict, test_output_dict):
     logging.info(f'Saving model current state')
     state_dict = {
         'optimizer': optimizer.state_dict(),
@@ -225,7 +225,7 @@ def training_loop(args):
         test_output_dict['label_losses'].append(test_action_loss.detach().cpu().numpy())
         test_output_dict['total_losses'].append(test_total_loss.detach().cpu().numpy())
         test_output_dict['accuracies'].append(test_accuracy)
-        save_model(SAVE_PATH, epoch, model, optimizer, train_output_dict, test_output_dict)
+        save_model(SAVE_PATH, model, optimizer, train_output_dict, test_output_dict)
     
     return train_output_dict, test_output_dict
 
