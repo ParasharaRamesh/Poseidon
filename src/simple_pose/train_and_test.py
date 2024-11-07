@@ -109,14 +109,14 @@ def print_evaluation_metric(epoch, predicted_labels, true_labels, total_losses, 
         
     return pose_loss, action_loss, total_loss, accuracy
 
-def save_model(epoch, model, optimizer, scheduler):
+def save_model(save_path, epoch, model, optimizer, scheduler):
     logging.info(f'Saving model current state')
     state_dict = {
         'optimizer': optimizer.state_dict(),
         'model': model.state_dict(),
         'scheduler': scheduler.state_dict(),
     }
-    weight_save_path = os.path.join('weights', 'simple_pose')
+    weight_save_path = os.path.join(save_path, 'weights', 'simple_pose')
     if not os.path.exists(weight_save_path):
         os.makedirs(weight_save_path)
 
@@ -218,7 +218,7 @@ def training_loop(args):
         test_output_dict['label_losses'].append(test_action_loss)
         test_output_dict['total_losses'].append(test_total_loss)
         test_output_dict['accuracies'].append(test_accuracy)
-        save_model(epoch, model, optimizer, scheduler)
+        save_model(SAVE_PATH, epoch, model, optimizer, scheduler)
         scheduler.step()
     
     return train_output_dict, test_output_dict
