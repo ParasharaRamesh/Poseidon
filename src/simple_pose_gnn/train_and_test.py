@@ -43,8 +43,8 @@ def train_once(train_dict):
     for index, (batch_graphs, batch_labels) in enumerate(dataloader):
         # Prepare Data
         batch_graphs = batch_graphs.to(torch.device(device))
-        batch_2d = batch_graphs.ndata['feat_2d']
-        batch_3d = batch_graphs.ndata['feat_3d']
+        batch_2d = batch_graphs.ndata['feat']
+        batch_3d = batch_graphs.ndata['label']
         batch_labels = batch_labels.to(device)
         # Train Model
         predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
@@ -89,8 +89,8 @@ def test_once(test_dict):
         for index, (batch_graphs, batch_labels) in enumerate(dataloader):
             # Prepare Data
             batch_graphs = batch_graphs.to(torch.device(device))
-            batch_2d = batch_graphs.ndata['feat_2d']
-            batch_3d = batch_graphs.ndata['feat_3d']
+            batch_2d = batch_graphs.ndata['feat']
+            batch_3d = batch_graphs.ndata['label']
             batch_labels = batch_labels.to(device)
             # Train Model
             predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
@@ -189,8 +189,8 @@ def training_loop(args):
     logging.info(f'Setup Training and Testing Dataloaders')
     
     NUM_LABELS = len(training_data.unique_labels)
-    INPUT_DIM = training_data[0][0].ndata['feat_2d'].shape[1]
-    OUTPUT_DIM = training_data[0][0].ndata['feat_3d'].shape[1]
+    INPUT_DIM = training_data[0][0].ndata['feat'].shape[1]
+    OUTPUT_DIM = training_data[0][0].ndata['label'].shape[1]
     HIDDEN_SIZE = 1024
     
     # Declare Model

@@ -42,7 +42,7 @@ class SimplePoseGAT(nn.Module):
 
     def forward(self, graph, node_2d_features):
         # Concatenate 2D coordinates as positional embeddings
-        pos_embeddings = graph.ndata['feat_2d']  # (x, y) coordinates
+        pos_embeddings = graph.ndata['feat']  # (x, y) coordinates
         h = torch.cat([node_2d_features, pos_embeddings], dim=1)  # Concatenate along feature dimension
 
         for i, layer in enumerate(self.gat_layers):
