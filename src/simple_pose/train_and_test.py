@@ -9,6 +9,7 @@ import argparse
 import os
 import json
 import logging
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -45,7 +46,7 @@ def train_once(train_dict):
         # Calculate Loss
         three_dim_pose_estimation_loss = pose_loss_multiplier * three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
         action_label_loss = action_loss_multiplier * action_label_loss_fn(predicted_action_labels, action_labels) 
-        loss = three_dim_pose_estimation_loss + action_label_loss
+        loss = action_label_loss + three_dim_pose_estimation_loss 
         # Store Results
         total_losses.append(loss)
         pose_losses.append(three_dim_pose_estimation_loss)
@@ -88,7 +89,7 @@ def test_once(test_dict):
             # Calculate Loss
             three_dim_pose_estimation_loss = pose_loss_multiplier * three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
             action_label_loss = action_loss_multiplier * action_label_loss_fn(predicted_action_labels, action_labels) 
-            loss = three_dim_pose_estimation_loss + action_label_loss
+            loss = action_label_loss + three_dim_pose_estimation_loss 
             # Store Results
             total_losses.append(loss)
             pose_losses.append(three_dim_pose_estimation_loss)
@@ -127,6 +128,17 @@ def save_model(save_path, model, optimizer, scheduler, train_output_dict, test_o
         os.makedirs(weight_save_path)
 
     torch.save(state_dict, os.path.join(weight_save_path, f'weights.pth'))
+    
+def create_graphs(train_output_dict, test_output_dict, save_path):
+    keys = ['pose_losses', 'label_losses', 'total_losses', 'accuracies']
+    epochs = [index for index in range(len(train_output_dict['pose_losses']))]
+    for key in keys:
+        plt.plot(epochs, train_output_dict[key], label='train')
+        plt.plot(epochs, test_output_dict[key], label='test')
+        plt.legend()
+        plt.title(key)
+        plt.savefig(os.path.join(save_path, f"{key}.png"))
+        plt.clf()
 
 def training_loop(args):
     print(f"Training args are: {args}")
@@ -241,7 +253,7 @@ def training_loop(args):
         save_model(SAVE_PATH, model, optimizer, scheduler, train_output_dict, test_output_dict)
         scheduler.step()
     
-    return train_output_dict, test_output_dict
+    create_graphs(train_output_dict, test_output_dict, SAVE_PATH)
 
 if __name__ == '__main__':
     timestamp = datetime.now().strftime("%Y-%m-%d--%H-%M-%S")

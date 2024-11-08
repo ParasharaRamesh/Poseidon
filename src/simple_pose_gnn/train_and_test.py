@@ -10,6 +10,7 @@ import argparse
 import os
 import json
 import logging
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -132,7 +133,18 @@ def save_model(save_path, model, optimizer, train_output_dict, test_output_dict)
         os.makedirs(weight_save_path)
 
     torch.save(state_dict, os.path.join(weight_save_path, f'weights.pth'))
-
+    
+def create_graphs(train_output_dict, test_output_dict, save_path):
+    keys = ['pose_losses', 'label_losses', 'total_losses', 'accuracies']
+    epochs = [index for index in range(len(train_output_dict['pose_losses']))]
+    for key in keys:
+        plt.plot(epochs, train_output_dict[key], label='train')
+        plt.plot(epochs, test_output_dict[key], label='test')
+        plt.legend()
+        plt.title(key)
+        plt.savefig(os.path.join(save_path, f"{key}.png"))
+        plt.clf()
+        
 def training_loop(args):
     print(f"Training args are: {args}")
     SAVE_PATH = args.save_path
@@ -227,7 +239,7 @@ def training_loop(args):
         test_output_dict['accuracies'].append(test_accuracy)
         save_model(SAVE_PATH, model, optimizer, train_output_dict, test_output_dict)
     
-    return train_output_dict, test_output_dict
+    create_graphs(train_output_dict, test_output_dict, SAVE_PATH)
 
 if __name__ == '__main__':
     timestamp = datetime.now().strftime("%Y-%m-%d--%H-%M-%S")
