@@ -85,7 +85,7 @@ def test_once(test_dict):
     
     model.eval()
     with torch.no_grad():
-        progress_bar = tqdm(enumerate(dataloader))
+        progress_bar = tqdm(total=len(dataloader), desc="Testing =>")
         for index, (batch_graphs, batch_labels) in enumerate(dataloader):
             # Prepare Data
             batch_graphs = batch_graphs.to(torch.device(device))
