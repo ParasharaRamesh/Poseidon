@@ -29,6 +29,8 @@ def train_once(train_dict):
     optimizer = train_dict['optimizer']
     three_dim_pose_loss_fn = train_dict['three_dim_pose_loss_fn']
     action_label_loss_fn = train_dict['action_label_loss_fn']
+    pose_loss_multiplier = train_dict['pose_loss_multiplier']
+    action_loss_multiplier = train_dict['action_loss_multiplier']
     
     predicted_labels = None
     true_labels = None
@@ -47,8 +49,8 @@ def train_once(train_dict):
         # Train Model
         predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
         # Calculate Loss
-        three_dim_pose_estimation_loss = 0.1 * three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
-        action_label_loss = 0.9 * action_label_loss_fn(predicted_action_labels, batch_labels)
+        three_dim_pose_estimation_loss = pose_loss_multiplier * three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
+        action_label_loss = action_loss_multiplier * action_label_loss_fn(predicted_action_labels, batch_labels)
         loss = three_dim_pose_estimation_loss + action_label_loss
         # Store Results
         total_losses.append(loss)
@@ -72,6 +74,8 @@ def test_once(test_dict):
     device = test_dict['device']
     three_dim_pose_loss_fn = test_dict['three_dim_pose_loss_fn']
     action_label_loss_fn = test_dict['action_label_loss_fn']
+    pose_loss_multiplier = test_dict['pose_loss_multiplier']
+    action_loss_multiplier = test_dict['action_loss_multiplier']
     
     predicted_labels = None
     true_labels = None
@@ -91,8 +95,8 @@ def test_once(test_dict):
             # Train Model
             predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
             # Calculate Loss
-            three_dim_pose_estimation_loss = 0.1 * three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
-            action_label_loss = 0.9 * action_label_loss_fn(predicted_action_labels, batch_labels)
+            three_dim_pose_estimation_loss = pose_loss_multiplier * three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
+            action_label_loss = action_loss_multiplier * action_label_loss_fn(predicted_action_labels, batch_labels)
             loss = three_dim_pose_estimation_loss + action_label_loss
             # Store Results
             total_losses.append(loss)
@@ -157,6 +161,8 @@ def training_loop(args):
     LEARNING_RATE = float(args.learning_rate)
     BATCH_SIZE = int(args.batch_size)
     NUM_EPOCHS = int(args.num_epochs)
+    POSE_LOSS_MULTIPLIER = args.pose_loss_multiplier
+    ACTION_LOSS_MULTIPLIER = args.action_loss_multiplier
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu' # DGL does not support MPS at the moment.
 
     logging.info(f'Model is currently using : {DEVICE}')
@@ -219,7 +225,14 @@ def training_loop(args):
     for epoch in range(NUM_EPOCHS):
         print(f"Starting EPOCH: {epoch + 1} / {NUM_EPOCHS}")
         train_dict = {
-            'model': model, 'dataloader': train_dataloader, 'device': DEVICE,  'optimizer': optimizer, 'three_dim_pose_loss_fn': three_dim_pose_loss_fn, 'action_label_loss_fn': action_label_loss_fn
+            'model': model,
+            'dataloader': train_dataloader,
+            'device': DEVICE, 
+            'optimizer': optimizer,
+            'three_dim_pose_loss_fn': three_dim_pose_loss_fn,
+            'action_label_loss_fn': action_label_loss_fn,
+            'pose_loss_multiplier': POSE_LOSS_MULTIPLIER,
+            'action_loss_multiplier': ACTION_LOSS_MULTIPLIER
         }
         train_predicted_labels, train_true_labels, train_total_losses, train_pose_losses, train_action_losses = train_once(train_dict)
         print(f"Saving at epoch {epoch}")
@@ -229,7 +242,13 @@ def training_loop(args):
         train_output_dict['total_losses'].append(train_total_loss.detach().cpu().numpy())
         train_output_dict['accuracies'].append(train_accuracy)
         test_dict = {
-            'model': model, 'dataloader': test_dataloader, 'device': DEVICE, 'three_dim_pose_loss_fn': three_dim_pose_loss_fn, 'action_label_loss_fn': action_label_loss_fn
+            'model': model,
+            'dataloader': test_dataloader,
+            'device': DEVICE,
+            'three_dim_pose_loss_fn': three_dim_pose_loss_fn,
+            'action_label_loss_fn': action_label_loss_fn,
+            'pose_loss_multiplier': POSE_LOSS_MULTIPLIER,
+            'action_loss_multiplier': ACTION_LOSS_MULTIPLIER
         }
         test_predicted_labels, test_true_labels, test_total_losses, test_pose_losses, test_action_losses = test_once(test_dict)
         test_pose_loss, test_action_loss, test_total_loss, test_accuracy = print_evaluation_metric(epoch, test_predicted_labels, test_true_labels, test_total_losses, test_pose_losses, test_action_losses, 'test')
@@ -247,6 +266,8 @@ if __name__ == '__main__':
     parser.add_argument('--learning_rate', default=1e-3)
     parser.add_argument('--num_epochs', type=int, default=200)
     parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--pose_loss_multiplier', type=float, default=1.0)
+    parser.add_argument('--action_loss_multiplier', type=float, default=100.0)
     parser.add_argument('--training_2d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_2d_poses.npy'))
     parser.add_argument('--training_3d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_3d_poses.npy'))
     parser.add_argument('--training_label_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_actions.npy'))
