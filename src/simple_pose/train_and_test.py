@@ -9,6 +9,7 @@ import argparse
 import os
 import json
 import logging
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -24,6 +25,8 @@ def train_once(train_dict):
     optimizer = train_dict['optimizer']
     three_dim_pose_loss_fn = train_dict['three_dim_pose_loss_fn']
     action_label_loss_fn = train_dict['action_label_loss_fn']
+    pose_loss_multiplier = train_dict['pose_loss_multiplier']
+    action_loss_multiplier = train_dict['action_loss_multiplier']
     
     predicted_labels = None
     true_labels = None
@@ -38,14 +41,12 @@ def train_once(train_dict):
         two_dim_input_data = two_dim_input_data.to(device)
         three_dim_output_data = three_dim_output_data.to(device)
         action_labels = action_labels.to(device)
-        # Set Gradients to 0
-        optimizer.zero_grad()
         # Train Model
         predicted_3d_pose_estimations, predicted_action_labels = model(two_dim_input_data)
         # Calculate Loss
-        three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
-        action_label_loss = action_label_loss_fn(predicted_action_labels, action_labels)
-        loss = three_dim_pose_estimation_loss + action_label_loss
+        three_dim_pose_estimation_loss = pose_loss_multiplier * three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
+        action_label_loss = action_loss_multiplier * action_label_loss_fn(predicted_action_labels, action_labels) 
+        loss = action_label_loss + three_dim_pose_estimation_loss 
         # Store Results
         total_losses.append(loss)
         pose_losses.append(three_dim_pose_estimation_loss)
@@ -54,8 +55,9 @@ def train_once(train_dict):
         predicted_labels = predicted_action_labels if predicted_labels is None else torch.cat((predicted_labels, predicted_action_labels), axis=0)
         true_labels = action_labels if true_labels is None else torch.cat((true_labels, action_labels), axis=0)
         # Optimize Gradients and Update Learning Rate
+        optimizer.zero_grad()
         loss.backward()
-        # Prepare Data
+        optimizer.step()
     
     return predicted_labels, true_labels, total_losses, pose_losses, action_losses
 
@@ -65,6 +67,8 @@ def test_once(test_dict):
     device = test_dict['device']
     three_dim_pose_loss_fn = test_dict['three_dim_pose_loss_fn']
     action_label_loss_fn = test_dict['action_label_loss_fn']
+    pose_loss_multiplier = test_dict['pose_loss_multiplier']
+    action_loss_multiplier = test_dict['action_loss_multiplier']
     
     predicted_labels = None
     true_labels = None
@@ -83,9 +87,9 @@ def test_once(test_dict):
             # Predict with model
             predicted_3d_pose_estimations, predicted_action_labels = model(two_dim_input_data)
             # Calculate Loss
-            three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
-            action_label_loss = action_label_loss_fn(predicted_action_labels, action_labels)
-            loss = three_dim_pose_estimation_loss + action_label_loss
+            three_dim_pose_estimation_loss = pose_loss_multiplier * three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
+            action_label_loss = action_loss_multiplier * action_label_loss_fn(predicted_action_labels, action_labels) 
+            loss = action_label_loss + three_dim_pose_estimation_loss 
             # Store Results
             total_losses.append(loss)
             pose_losses.append(three_dim_pose_estimation_loss)
@@ -107,19 +111,34 @@ def print_evaluation_metric(epoch, predicted_labels, true_labels, total_losses, 
         print(f"Epoch: {epoch} | Total Testing Loss: {total_loss} | Pose Testing Loss: {pose_loss} | Action Testing Loss: {action_loss} | Action Test Label Accuracy: {accuracy}")
     elif mode == 'train':
         print(f"Epoch: {epoch} | Total Training Loss: {total_loss} | Pose Training Loss: {pose_loss} | Action Training Loss: {action_loss} | Action Train Label Accuracy: {accuracy}")
+        
+    return pose_loss, action_loss, total_loss, accuracy
 
-def save_model(epoch, model, optimizer, scheduler):
+def save_model(save_path, model, optimizer, scheduler, train_output_dict, test_output_dict):
     logging.info(f'Saving model current state')
     state_dict = {
         'optimizer': optimizer.state_dict(),
         'model': model.state_dict(),
         'scheduler': scheduler.state_dict(),
+        'train_outputs': train_output_dict,
+        'test_outputs': test_output_dict
     }
-    weight_save_path = os.path.join('weights', 'simple_pose')
+    weight_save_path = os.path.join(save_path, 'weights', 'simple_pose')
     if not os.path.exists(weight_save_path):
         os.makedirs(weight_save_path)
 
-    torch.save(state_dict, os.path.join(weight_save_path, f'weights_{epoch}.pth'))
+    torch.save(state_dict, os.path.join(weight_save_path, f'weights.pth'))
+    
+def create_graphs(train_output_dict, test_output_dict, save_path):
+    keys = ['pose_losses', 'label_losses', 'total_losses', 'accuracies']
+    epochs = [index for index in range(len(train_output_dict['pose_losses']))]
+    for key in keys:
+        plt.plot(epochs, train_output_dict[key], label='train')
+        plt.plot(epochs, test_output_dict[key], label='test')
+        plt.legend()
+        plt.title(key)
+        plt.savefig(os.path.join(save_path, f"{key}.png"))
+        plt.clf()
 
 def training_loop(args):
     print(f"Training args are: {args}")
@@ -133,7 +152,8 @@ def training_loop(args):
     LEARNING_RATE = float(args.learning_rate)
     BATCH_SIZE = int(args.batch_size)
     NUM_EPOCHS = int(args.num_epochs)
-    EPOCH_REPORT = int(args.epoch_report)
+    POSE_LOSS_MULTIPLIER = args.pose_loss_multiplier
+    ACTION_LOSS_MULTIPLIER = args.action_loss_multiplier
     DEVICE = 'cuda' if torch.cuda.is_available() else ('mps' if torch.backends.mps.is_available() else 'cpu') 
 
     logging.info(f'Model is currently using : {DEVICE}')
@@ -184,31 +204,65 @@ def training_loop(args):
     
     # Training and Testing Loop
     logging.info(f'Start Training and Testing Loops')
+    test_output_dict = {
+        'pose_losses': [],
+        'label_losses': [],
+        'accuracies': [],
+        'total_losses': []
+    }
+    train_output_dict = {
+        'pose_losses': [],
+        'label_losses': [],
+        'accuracies': [],
+        'total_losses': []
+    }
     for epoch in range(NUM_EPOCHS):
         print(f"Starting EPOCH: {epoch + 1} / {NUM_EPOCHS}")
         train_dict = {
-            'model': model, 'dataloader': train_dataloader, 'device': DEVICE,  'optimizer': optimizer, 'three_dim_pose_loss_fn': three_dim_pose_loss_fn, 'action_label_loss_fn': action_label_loss_fn
+            'model': model,
+            'dataloader': train_dataloader,
+            'device': DEVICE, 
+            'optimizer': optimizer,
+            'three_dim_pose_loss_fn': three_dim_pose_loss_fn,
+            'action_label_loss_fn': action_label_loss_fn,
+            'pose_loss_multiplier': POSE_LOSS_MULTIPLIER,
+            'action_loss_multiplier': ACTION_LOSS_MULTIPLIER
         }
         train_predicted_labels, train_true_labels, train_total_losses, train_pose_losses, train_action_losses = train_once(train_dict)
-        if epoch % EPOCH_REPORT == 0 or epoch == NUM_EPOCHS - 1:
-            print(f"Saving at epoch {epoch}")
-            print_evaluation_metric(epoch, train_predicted_labels, train_true_labels, train_total_losses, train_pose_losses, train_action_losses, 'train')
-            test_dict = {
-                'model': model, 'dataloader': test_dataloader, 'device': DEVICE, 'three_dim_pose_loss_fn': three_dim_pose_loss_fn, 'action_label_loss_fn': action_label_loss_fn
-            }
-            test_predicted_labels, test_true_labels, test_total_losses, test_pose_losses, test_action_losses = test_once(test_dict)
-            print_evaluation_metric(epoch, test_predicted_labels, test_true_labels, test_total_losses, test_pose_losses, test_action_losses, 'test')
-            
-            save_model(epoch, model, optimizer, scheduler)
+        print(f"Saving at epoch {epoch}")
+        train_pose_loss, train_action_loss, train_total_loss, train_accuracy = print_evaluation_metric(epoch, train_predicted_labels, train_true_labels, train_total_losses, train_pose_losses, train_action_losses, 'train')
+        train_output_dict['pose_losses'].append(train_pose_loss.detach().cpu().numpy())
+        train_output_dict['label_losses'].append(train_action_loss.detach().cpu().numpy())
+        train_output_dict['total_losses'].append(train_total_loss.detach().cpu().numpy())
+        train_output_dict['accuracies'].append(train_accuracy)
+        test_dict = {
+            'model': model,
+            'dataloader': test_dataloader,
+            'device': DEVICE,
+            'three_dim_pose_loss_fn': three_dim_pose_loss_fn,
+            'action_label_loss_fn': action_label_loss_fn,
+            'pose_loss_multiplier': POSE_LOSS_MULTIPLIER,
+            'action_loss_multiplier': ACTION_LOSS_MULTIPLIER
+        }
+        test_predicted_labels, test_true_labels, test_total_losses, test_pose_losses, test_action_losses = test_once(test_dict)
+        test_pose_loss, test_action_loss, test_total_loss, test_accuracy = print_evaluation_metric(epoch, test_predicted_labels, test_true_labels, test_total_losses, test_pose_losses, test_action_losses, 'test')
+        test_output_dict['pose_losses'].append(test_pose_loss.detach().cpu().numpy())
+        test_output_dict['label_losses'].append(test_action_loss.detach().cpu().numpy())
+        test_output_dict['total_losses'].append(test_total_loss.detach().cpu().numpy())
+        test_output_dict['accuracies'].append(test_accuracy)
+        save_model(SAVE_PATH, model, optimizer, scheduler, train_output_dict, test_output_dict)
         scheduler.step()
+    
+    create_graphs(train_output_dict, test_output_dict, SAVE_PATH)
 
 if __name__ == '__main__':
     timestamp = datetime.now().strftime("%Y-%m-%d--%H-%M-%S")
     parser = argparse.ArgumentParser(description='SimplePose Training Code')
     parser.add_argument('--learning_rate', default=1e-3)
-    parser.add_argument('--num_epochs', type=int, default=200)
-    parser.add_argument('--epoch_report', type=int, default=10)
+    parser.add_argument('--num_epochs', type=int, default=1000)
     parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--pose_loss_multiplier', type=float, default=1.0)
+    parser.add_argument('--action_loss_multiplier', type=float, default=100.0)
     parser.add_argument('--training_2d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_2d_poses.npy'))
     parser.add_argument('--training_3d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_3d_poses.npy'))
     parser.add_argument('--training_label_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_actions.npy'))
