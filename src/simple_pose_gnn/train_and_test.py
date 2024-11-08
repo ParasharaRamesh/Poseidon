@@ -191,7 +191,7 @@ def training_loop(args):
     NUM_LABELS = len(training_data.unique_labels)
     INPUT_DIM = training_data[0][0].ndata['feat'].shape[1]
     OUTPUT_DIM = training_data[0][0].ndata['label'].shape[1]
-    HIDDEN_SIZE = 1024
+    HIDDEN_SIZE = 128
     
     # Declare Model
     model = SimplePoseGNN(INPUT_DIM, OUTPUT_DIM, HIDDEN_SIZE, NUM_LABELS).to(DEVICE)

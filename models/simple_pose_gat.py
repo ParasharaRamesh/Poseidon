@@ -3,11 +3,10 @@ import dgl.nn as dglnn
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import matplotlib.pyplot as plt
 
 # Simple GNN Model
 class SimplePoseGAT(nn.Module):
-    def __init__(self, input_dim, output_dim, hidden_size, num_classes):
+    def __init__(self, input_dim, output_dim, hidden_size, num_classes, num_layers=6, dropout=0.6):
         self.input_dim = input_dim + 2 # incorporate additional positional encoding (x,y)
         self.output_dim = output_dim
         self.hidden_size = hidden_size

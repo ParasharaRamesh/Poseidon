@@ -16,9 +16,11 @@ class GraphConvModule(nn.Module):
         )
         
     def forward(self, graph, node_features):
+        x_in = node_features
         x = self.conv_1(graph, node_features)
         x = self.conv_2(graph, x)
         x = self.block(x)
+        x = x_in + x
         return x
         
 # Simple GNN Model
@@ -32,16 +34,24 @@ class SimplePoseGNN(nn.Module):
             GraphConvModule(hidden_size, dropout),
         ) for _ in range(num_layers))
         
-        self.output_3d_pose_linear = nn.Linear(hidden_size, output_dim)
+        self.output_3d_pose_linear = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size),
+            nn.Linear(hidden_size, hidden_size),
+            nn.Linear(hidden_size, output_dim)
+        )
         
-        self.output_label_linear = nn.Linear(hidden_size, num_classes)
+        self.output_label_linear = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size),
+            nn.Linear(hidden_size, hidden_size),
+            nn.Linear(hidden_size, num_classes)
+        )
         
     def forward(self, graph, node_features):
         # 3D Pose Estimation
         h = self.input_layer(node_features)
         
         for block in self.blocks:
-            h = h + block(graph, h)
+            h = block(graph, h)
         
         # Classifier
         # Perform classification
