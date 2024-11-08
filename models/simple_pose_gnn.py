@@ -7,7 +7,8 @@ from dgl.nn.pytorch import Sequential
 class GraphConvModule(nn.Module):
     def __init__(self, hidden_size, dropout):
         super(GraphConvModule, self).__init__()
-        self.conv = dglnn.GraphConv(hidden_size, hidden_size)
+        self.conv_1 = dglnn.GraphConv(hidden_size, hidden_size)
+        self.conv_2 = dglnn.GraphConv(hidden_size, hidden_size)
         self.block = nn.Sequential(
             nn.BatchNorm1d(hidden_size),
             nn.ReLU(),
@@ -15,7 +16,8 @@ class GraphConvModule(nn.Module):
         )
         
     def forward(self, graph, node_features):
-        x = self.conv(graph, node_features)
+        x = self.conv_1(graph, node_features)
+        x = self.conv_2(graph, x)
         x = self.block(x)
         return x
         

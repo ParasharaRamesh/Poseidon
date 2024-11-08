@@ -132,7 +132,7 @@ def save_model(save_path, model, optimizer, train_output_dict, test_output_dict)
         'train_outputs': train_output_dict,
         'test_outputs': test_output_dict
     }
-    weight_save_path = os.path.join(save_path, 'weights', 'simple_pose')
+    weight_save_path = os.path.join(save_path, 'weights')
     if not os.path.exists(weight_save_path):
         os.makedirs(weight_save_path)
 
@@ -224,6 +224,13 @@ def training_loop(args):
     logging.info(f'Start Training and Testing Loops')
     for epoch in range(NUM_EPOCHS):
         print(f"Starting EPOCH: {epoch + 1} / {NUM_EPOCHS}")
+        
+        if epoch % 5 == 0 and epoch > 0:
+            logging.info('Switching Pose Loss Multiplier and Action Loss multiplier')
+            temp = POSE_LOSS_MULTIPLIER
+            POSE_LOSS_MULTIPLIER = ACTION_LOSS_MULTIPLIER
+            ACTION_LOSS_MULTIPLIER = temp
+        
         train_dict = {
             'model': model,
             'dataloader': train_dataloader,

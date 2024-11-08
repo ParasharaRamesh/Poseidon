@@ -3,6 +3,7 @@ import dgl.nn as dglnn
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
 
 # Simple GNN Model
 class SimplePoseGAT(nn.Module):
