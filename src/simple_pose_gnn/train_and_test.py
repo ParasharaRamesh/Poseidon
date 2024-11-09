@@ -49,9 +49,9 @@ def train_once(train_dict):
         # Train Model
         predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
         # Calculate Loss
-        three_dim_pose_estimation_loss = pose_loss_multiplier * three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
-        action_label_loss = action_loss_multiplier * action_label_loss_fn(predicted_action_labels, batch_labels)
-        loss = three_dim_pose_estimation_loss + action_label_loss
+        three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
+        action_label_loss = action_label_loss_fn(predicted_action_labels, batch_labels)
+        loss = pose_loss_multiplier * three_dim_pose_estimation_loss + action_loss_multiplier * action_label_loss
         # Store Results
         total_losses.append(loss)
         pose_losses.append(three_dim_pose_estimation_loss)
@@ -95,9 +95,9 @@ def test_once(test_dict):
             # Train Model
             predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
             # Calculate Loss
-            three_dim_pose_estimation_loss = pose_loss_multiplier * three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
-            action_label_loss = action_loss_multiplier * action_label_loss_fn(predicted_action_labels, batch_labels)
-            loss = three_dim_pose_estimation_loss + action_label_loss
+            three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
+            action_label_loss = action_label_loss_fn(predicted_action_labels, batch_labels)
+            loss = pose_loss_multiplier * three_dim_pose_estimation_loss + action_loss_multiplier * action_label_loss
             # Store Results
             total_losses.append(loss)
             pose_losses.append(three_dim_pose_estimation_loss)
@@ -181,17 +181,17 @@ def training_loop(args):
     
     # Prepare Training Data
     training_data = Human36MGraphDataset(TRAINING_2D_DATA_PATH, TRAINING_3D_DATA_PATH, TRAINING_LABEL_PATH)
-    train_dataloader = DataLoader(training_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=20, collate_fn=collate)
+    train_dataloader = DataLoader(training_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=12, collate_fn=collate)
     # Prepare Testing Data
     testing_data = Human36MGraphDataset(TESTING_2D_DATA_PATH, TESTING_3D_DATA_PATH, TESTING_LABEL_PATH)
-    test_dataloader = DataLoader(testing_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=20, collate_fn=collate)
+    test_dataloader = DataLoader(testing_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=12, collate_fn=collate)
     
     logging.info(f'Setup Training and Testing Dataloaders')
     
     NUM_LABELS = len(training_data.unique_labels)
     INPUT_DIM = training_data[0][0].ndata['feat'].shape[1]
     OUTPUT_DIM = training_data[0][0].ndata['label'].shape[1]
-    HIDDEN_SIZE = 128
+    HIDDEN_SIZE = 512
     
     # Declare Model
     model = SimplePoseGNN(INPUT_DIM, OUTPUT_DIM, HIDDEN_SIZE, NUM_LABELS).to(DEVICE)
@@ -224,13 +224,6 @@ def training_loop(args):
     logging.info(f'Start Training and Testing Loops')
     for epoch in range(NUM_EPOCHS):
         print(f"Starting EPOCH: {epoch + 1} / {NUM_EPOCHS}")
-        
-        if epoch % 5 == 0 and epoch > 0:
-            logging.info('Switching Pose Loss Multiplier and Action Loss multiplier')
-            temp = POSE_LOSS_MULTIPLIER
-            POSE_LOSS_MULTIPLIER = ACTION_LOSS_MULTIPLIER
-            ACTION_LOSS_MULTIPLIER = temp
-        
         train_dict = {
             'model': model,
             'dataloader': train_dataloader,
@@ -264,8 +257,7 @@ def training_loop(args):
         test_output_dict['total_losses'].append(test_total_loss.detach().cpu().numpy())
         test_output_dict['accuracies'].append(test_accuracy)
         save_model(SAVE_PATH, model, optimizer, train_output_dict, test_output_dict)
-    
-    create_graphs(train_output_dict, test_output_dict, SAVE_PATH)
+        create_graphs(train_output_dict, test_output_dict, SAVE_PATH)
 
 if __name__ == '__main__':
     timestamp = datetime.now().strftime("%Y-%m-%d--%H-%M-%S")

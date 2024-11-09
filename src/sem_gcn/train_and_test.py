@@ -160,10 +160,10 @@ def training_loop(args):
     
     # Prepare Training Data
     training_data = Human36MGraphDataset(TRAINING_2D_DATA_PATH, TRAINING_3D_DATA_PATH, TRAINING_LABEL_PATH)
-    train_dataloader = DataLoader(training_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=20, collate_fn=collate)
+    train_dataloader = DataLoader(training_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=12, collate_fn=collate)
     # Prepare Testing Data
     testing_data = Human36MGraphDataset(TESTING_2D_DATA_PATH, TESTING_3D_DATA_PATH, TESTING_LABEL_PATH)
-    test_dataloader = DataLoader(testing_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=20, collate_fn=collate)
+    test_dataloader = DataLoader(testing_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=12, collate_fn=collate)
     
     logging.info(f'Setup Training and Testing Dataloaders')
     

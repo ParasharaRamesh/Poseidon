@@ -1,6 +1,7 @@
 import dgl
 import dgl.nn as dglnn
 import torch.nn as nn
+import torch
 import torch.nn.functional as F
 from dgl.nn.pytorch import Sequential
 
@@ -25,9 +26,11 @@ class GraphConvModule(nn.Module):
         
 # Simple GNN Model
 class SimplePoseGNN(nn.Module):
-    def __init__(self, input_dim, output_dim, hidden_size, num_classes, num_layers=6, dropout=0.6):
+    def __init__(self, input_dim, output_dim, hidden_size, num_classes, num_layers=4, dropout=0.6):
         super(SimplePoseGNN, self).__init__()
-        self.input_layer = nn.Linear(input_dim, hidden_size)
+        self.k = 20
+        
+        self.input_layer = nn.Linear(input_dim + self.k, hidden_size)
         
         self.blocks = nn.ModuleList(Sequential(
             GraphConvModule(hidden_size, dropout),
@@ -47,9 +50,10 @@ class SimplePoseGNN(nn.Module):
         )
         
     def forward(self, graph, node_features):
+        lap_pe = dgl.lap_pe(graph, k=self.k, padding=True)
+        features = torch.cat([node_features, lap_pe], dim=1)
         # 3D Pose Estimation
-        h = self.input_layer(node_features)
-        
+        h = self.input_layer(features)
         for block in self.blocks:
             h = block(graph, h)
         

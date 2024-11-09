@@ -122,6 +122,8 @@ def print_evaluation_metric(epoch, predicted_labels, true_labels, total_losses, 
     elif mode == 'train':
         print(f"Epoch: {epoch} | Total Training Loss: {total_loss} | Pose Training Loss: {pose_loss} | Action Training Loss: {action_loss} | Action Train Label Accuracy: {accuracy}")
 
+    return pose_loss, action_loss, total_loss, accuracy
+
 def save_model(save_path, model, optimizer, train_output_dict, test_output_dict):
     logging.info(f'Saving model current state')
     state_dict = {
@@ -159,7 +161,6 @@ def training_loop(args):
     LEARNING_RATE = float(args.learning_rate)
     BATCH_SIZE = int(args.batch_size)
     NUM_EPOCHS = int(args.num_epochs)
-    EPOCH_REPORT = int(args.epoch_report)
     POSE_LOSS_MULTIPLIER = args.pose_loss_multiplier
     ACTION_LOSS_MULTIPLIER = args.action_loss_multiplier
     DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu' # DGL does not support MPS at the moment.
@@ -190,11 +191,10 @@ def training_loop(args):
     NUM_LABELS = len(training_data.unique_labels)
     INPUT_DIM = training_data[0][0].ndata['feat'].shape[1]
     OUTPUT_DIM = training_data[0][0].ndata['label'].shape[1]
-    HIDDEN_SIZE = 1024
     
     # Declare Model
-    model = SimplePoseGAT(INPUT_DIM, OUTPUT_DIM, HIDDEN_SIZE, NUM_LABELS).to(DEVICE)
-    logging.info(f'Setup SimplePoseGNN model')
+    model = SimplePoseGAT(INPUT_DIM, OUTPUT_DIM, NUM_LABELS).to(DEVICE)
+    logging.info(f'Setup SimplePoseGAT model')
     logging.info(model)
     
     
@@ -265,8 +265,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='SimplePoseGAT Training Code')
     parser.add_argument('--learning_rate', default=1e-3)
     parser.add_argument('--num_epochs', type=int, default=200)
-    parser.add_argument('--epoch_report', type=int, default=10)
     parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--pose_loss_multiplier', type=float, default=1.0)
+    parser.add_argument('--action_loss_multiplier', type=float, default=100.0)
     parser.add_argument('--training_2d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_2d_poses.npy'))
     parser.add_argument('--training_3d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_3d_poses.npy'))
     parser.add_argument('--training_label_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'train_actions.npy'))
