@@ -26,9 +26,9 @@ class GraphConvModule(nn.Module):
         
 # Simple GNN Model
 class SimplePoseGNN(nn.Module):
-    def __init__(self, input_dim, output_dim, hidden_size, num_classes, num_layers=4, dropout=0.6):
+    def __init__(self, input_dim, output_dim, hidden_size, num_classes, num_layers=4, dropout=0.6, k=20):
         super(SimplePoseGNN, self).__init__()
-        self.k = 20
+        self.k = k
         
         self.input_layer = nn.Linear(input_dim + self.k, hidden_size)
         
@@ -39,18 +39,26 @@ class SimplePoseGNN(nn.Module):
         
         self.output_3d_pose_linear = nn.Sequential(
             nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Dropout(dropout),
             nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Dropout(dropout),
             nn.Linear(hidden_size, output_dim)
         )
         
         self.output_label_linear = nn.Sequential(
             nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Dropout(dropout),
             nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Dropout(dropout),
             nn.Linear(hidden_size, num_classes)
         )
         
     def forward(self, graph, node_features):
-        lap_pe = dgl.lap_pe(graph, k=self.k, padding=True)
+        lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_features.device)
         features = torch.cat([node_features, lap_pe], dim=1)
         # 3D Pose Estimation
         h = self.input_layer(features)

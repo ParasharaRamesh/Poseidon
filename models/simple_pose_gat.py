@@ -35,13 +35,14 @@ class SparseMultiHeadAttention(nn.Module):
         return self.out_proj(out.reshape(N, -1))
     
 class GraphTransformerLayer(nn.Module):
-    def __init__(self, hidden_size=80, num_heads=8):
+    def __init__(self, hidden_size=80, num_heads=8, dropout=0.6):
         super().__init__()
         self.multi_head_attention = SparseMultiHeadAttention(hidden_size, num_heads)
         self.batch_norm_1 = nn.BatchNorm1d(hidden_size)
         self.batch_norm_2 = nn.BatchNorm1d(hidden_size)
         self.feed_forward_1 = nn.Linear(hidden_size, hidden_size * 2)
         self.feed_forward_2 = nn.Linear(hidden_size * 2, hidden_size)
+        self.dropout_1 = nn.Dropout(dropout)
         
     def forward(self, A, h):
         h1 = h
@@ -49,13 +50,14 @@ class GraphTransformerLayer(nn.Module):
         h = self.batch_norm_1(h + h1)
         
         h2 = h
-        h = self.feed_forward_2(F.relu(self.feed_forward_1(h)))
+        h = self.feed_forward_2(self.dropout_1(F.relu(self.feed_forward_1(h))))
         h = h2 + h
         
         return self.batch_norm_2(h)
         
 class SimplePoseGAT(nn.Module):
-    def __init__(self, in_size, out_size, num_classes, hidden_size=80, num_layers=8, num_heads=8, k=20):
+    # Reducing layers due to memory issue = num_layers=8
+    def __init__(self, in_size, out_size, num_classes, hidden_size=80, num_layers=6, num_heads=8, dropout=0.6, k=20):
         super().__init__()
         self.k = k
         self.embedding_h = nn.Linear(in_size, hidden_size)
@@ -69,8 +71,10 @@ class SimplePoseGAT(nn.Module):
         self.action_predictor = nn.Sequential(
             nn.Linear(hidden_size, hidden_size // 2),
             nn.ReLU(),
+            nn.Dropout(dropout),
             nn.Linear(hidden_size // 2, hidden_size // 4),
             nn.ReLU(),
+            nn.Dropout(dropout),
             nn.Linear(hidden_size // 4, num_classes),
         )
     
