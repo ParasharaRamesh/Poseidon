@@ -57,7 +57,7 @@ class GraphTransformerLayer(nn.Module):
         
 class SimplePoseGAT(nn.Module):
     # Reducing layers due to memory issue = num_layers=8
-    def __init__(self, in_size, out_size, num_classes, hidden_size=80, num_layers=6, num_heads=8, dropout=0.6, k=20):
+    def __init__(self, in_size, out_size, num_classes, hidden_size=80, num_layers=4, num_heads=8, dropout=0.6, k=20):
         super().__init__()
         self.k = k
         self.embedding_h = nn.Linear(in_size, hidden_size)
@@ -70,11 +70,11 @@ class SimplePoseGAT(nn.Module):
         
         self.action_predictor = nn.Sequential(
             nn.Linear(hidden_size, hidden_size // 2),
-            nn.ReLU(),
             nn.Dropout(dropout),
+            nn.ReLU(),
             nn.Linear(hidden_size // 2, hidden_size // 4),
-            nn.ReLU(),
             nn.Dropout(dropout),
+            nn.ReLU(),
             nn.Linear(hidden_size // 4, num_classes),
         )
     

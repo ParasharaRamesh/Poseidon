@@ -9,21 +9,30 @@ class GraphConvModule(nn.Module):
     def __init__(self, hidden_size, dropout):
         super(GraphConvModule, self).__init__()
         self.conv_1 = dglnn.GraphConv(hidden_size, hidden_size)
+        self.batch_norm_1 = nn.BatchNorm1d(hidden_size)
+        
         self.conv_2 = dglnn.GraphConv(hidden_size, hidden_size)
-        self.block = nn.Sequential(
-            nn.BatchNorm1d(hidden_size),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-        )
+        self.batch_norm_2 = nn.BatchNorm1d(hidden_size)
+        
+        self.feed_forward_1 = nn.Linear(hidden_size, hidden_size)
+        self.dropout = nn.Dropout(dropout)
         
     def forward(self, graph, node_features):
-        x_in = node_features
-        x = self.conv_1(graph, node_features)
-        x = self.conv_2(graph, x)
-        x = self.block(x)
-        x = x_in + x
-        return x
+        h_in = node_features
+        h = self.conv_1(graph, node_features)
+        h = self.batch_norm_1(h)
+        h = F.relu(h)
         
+        h = self.conv_2(graph, h)
+        h = self.batch_norm_2(h)
+        h = self.dropout(h)
+        h = F.relu(h)
+        
+        h = self.feed_forward_1(h)
+        
+        h = h + h_in
+        return h
+    
 # Simple GNN Model
 class SimplePoseGNN(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_size, num_classes, num_layers=4, dropout=0.6, k=20):
@@ -39,21 +48,15 @@ class SimplePoseGNN(nn.Module):
         
         self.output_3d_pose_linear = nn.Sequential(
             nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
-            nn.Dropout(dropout),
             nn.Linear(hidden_size, output_dim)
         )
         
         self.output_label_linear = nn.Sequential(
             nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
-            nn.Dropout(dropout),
             nn.Linear(hidden_size, num_classes)
         )
         
