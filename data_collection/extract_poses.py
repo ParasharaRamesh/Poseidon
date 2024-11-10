@@ -71,15 +71,19 @@ for action in ACTIONS:
                 pose_landmarks = result.pose_landmarks.landmark
                 pose_world_landmarks = result.pose_world_landmarks.landmark
                 print(f"Landmark coordinates for frame {frame_number}:")
+                pose_2d = []
+                pose_3d = []
                 for idx, (pose_landmark, pose_world_landmark) in enumerate(zip(pose_landmarks, pose_world_landmarks)):
                     if idx in POSE_LANDMARKS:
                         print(f"{mp_pose.PoseLandmark(idx).name}")
                         assert pose_landmark.visibility > 0.4
                         print(pose_landmark.x , pose_landmark.y)
-                        pose_2ds.append((pose_landmark.x , pose_landmark.y))
+                        pose_2d.append((pose_landmark.x , pose_landmark.y))
                         print(pose_world_landmark.x , pose_world_landmark.y, pose_world_landmark.z)
-                        pose_3ds.append((pose_world_landmark.x , pose_world_landmark.y, pose_world_landmark.z))
-                        pose_actions.append(action)
+                        pose_3d.append((pose_world_landmark.x , pose_world_landmark.y, pose_world_landmark.z))
+                pose_2ds.append(pose_2d)
+                pose_3ds.append(pose_3d)
+                pose_actions.append(action)
                 print("")
 
             # Display the frame
