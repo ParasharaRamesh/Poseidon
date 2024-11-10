@@ -43,19 +43,32 @@ def train_once(train_dict):
     for index, (batch_graphs, batch_labels) in enumerate(dataloader):
         # Prepare Data
         batch_graphs = batch_graphs.to(torch.device(device))
-        batch_2d = batch_graphs.ndata['feat']
-        batch_3d = batch_graphs.ndata['label']
+        batch_2d = batch_graphs.ndata['feat_2d']
+        batch_2d_labels = batch_graphs.ndata['label']
+        # Train Model
+        predicted_3d_pose_estimations, predicted_action_labels = model.forward(batch_graphs, batch_2d, 'pose')
+        # Calculate Loss
+        loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_2d_labels)
+        # Store Results
+        pose_losses.append(loss)
+        # Optimize Gradients and Update Learning Rate
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        progress_bar.update(1)
+    progress_bar.close()
+    
+    for index, (batch_graphs, batch_labels) in enumerate(dataloader):
+        # Prepare Data
+        batch_graphs = batch_graphs.to(torch.device(device))
+        batch_3d = batch_graphs.ndata['feat_3d']
         batch_labels = batch_labels.to(device)
         # Train Model
-        predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
+        predicted_action_labels = model.forward(batch_graphs, batch_3d)
         # Calculate Loss
-        three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
-        action_label_loss = action_label_loss_fn(predicted_action_labels, batch_labels)
-        loss = pose_loss_multiplier * three_dim_pose_estimation_loss + action_loss_multiplier * action_label_loss
+        loss = action_label_loss_fn(predicted_action_labels, batch_labels)
         # Store Results
-        total_losses.append(loss)
-        pose_losses.append(three_dim_pose_estimation_loss)
-        action_losses.append(action_label_loss)
+        action_losses.append(loss)
         predicted_action_labels = torch.argmax(predicted_action_labels, axis=1)
         predicted_labels = predicted_action_labels if predicted_labels is None else torch.cat((predicted_labels, predicted_action_labels), axis=0)
         true_labels = batch_labels if true_labels is None else torch.cat((true_labels, batch_labels), axis=0)
@@ -65,6 +78,8 @@ def train_once(train_dict):
         optimizer.step()
         progress_bar.update(1)
     progress_bar.close()
+    
+    total_losses = [pose_losses[idx] + action_losses[idx] for idx in range(len(pose_losses))]
     
     return predicted_labels, true_labels, total_losses, pose_losses, action_losses
 
@@ -89,15 +104,16 @@ def test_once(test_dict):
         for index, (batch_graphs, batch_labels) in enumerate(dataloader):
             # Prepare Data
             batch_graphs = batch_graphs.to(torch.device(device))
-            batch_2d = batch_graphs.ndata['feat']
-            batch_3d = batch_graphs.ndata['label']
+            batch_2d = batch_graphs.ndata['feat_2d']
+            batch_2d_labels = batch_graphs.ndata['label']
+            batch_3d = batch_graphs.ndata['feat_3d']
             batch_labels = batch_labels.to(device)
             # Train Model
-            predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
+            predicted_3d_pose_estimations, predicted_action_labels = model.forward(batch_graphs, batch_2d, batch_3d)
             # Calculate Loss
-            three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
+            three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_2d_labels)
             action_label_loss = action_label_loss_fn(predicted_action_labels, batch_labels)
-            loss = pose_loss_multiplier * three_dim_pose_estimation_loss + action_loss_multiplier * action_label_loss
+            loss = three_dim_pose_estimation_loss + action_label_loss
             # Store Results
             total_losses.append(loss)
             pose_losses.append(three_dim_pose_estimation_loss)
@@ -189,12 +205,12 @@ def training_loop(args):
     logging.info(f'Setup Training and Testing Dataloaders')
     
     NUM_LABELS = len(training_data.unique_labels)
-    INPUT_DIM = training_data[0][0].ndata['feat'].shape[1]
-    OUTPUT_DIM = training_data[0][0].ndata['label'].shape[1]
+    # INPUT_DIM = training_data[0][0].ndata['feat'].shape[1]
+    # OUTPUT_DIM = training_data[0][0].ndata['label'].shape[1]
     HIDDEN_SIZE = 512
     
     # Declare Model
-    model = SimplePoseGNN(INPUT_DIM, OUTPUT_DIM, HIDDEN_SIZE, NUM_LABELS).to(DEVICE)
+    model = SimplePoseGNN(HIDDEN_SIZE, NUM_LABELS).to(DEVICE)
     logging.info(f'Setup SimplePoseGNN model')
     logging.info(model)
     

@@ -35,8 +35,9 @@ class Human36MGraphDataset(DGLDataset):
         graph = dgl.graph((human_pose_edge_src, human_pose_edge_dst))
         graph = dgl.to_bidirected(graph)
         # Add node features
-        graph.ndata['feat'] = torch.Tensor(two_dim_data)
+        graph.ndata['feat_2d'] = torch.Tensor(two_dim_data)
         graph.ndata['label'] = torch.Tensor(three_dim_data)
+        graph.ndata['feat_3d'] = torch.Tensor(three_dim_data)
         # Add edge features
         graph.edata['feat'] = torch.ones(graph.num_edges()) # Set Edge Weights as 1
         return [graph, label]
