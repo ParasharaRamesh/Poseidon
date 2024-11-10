@@ -266,8 +266,7 @@ def training_loop(args):
         test_output_dict['accuracies'].append(test_accuracy)
         save_model(SAVE_PATH, model, optimizer, scheduler, train_output_dict, test_output_dict)
         scheduler.step()
-    
-    create_graphs(train_output_dict, test_output_dict, SAVE_PATH)
+        create_graphs(train_output_dict, test_output_dict, SAVE_PATH)
 
 if __name__ == '__main__':
     timestamp = datetime.now().strftime("%Y-%m-%d--%H-%M-%S")
