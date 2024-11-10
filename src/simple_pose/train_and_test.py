@@ -35,29 +35,43 @@ def train_once(train_dict):
     action_losses = []
     
     model.train()
+    # Train Pose First
     for data in tqdm(dataloader):
         # Prepare Data
-        two_dim_input_data, three_dim_output_data, action_labels= data
+        two_dim_input_data, three_dim_output_data, _ = data
         two_dim_input_data = two_dim_input_data.to(device)
+        three_dim_output_data = three_dim_output_data.to(device)
+        # Train Model
+        predicted_3d_pose_estimations = model.forward(x_2d=two_dim_input_data, mode='pose')
+        # Calculate Loss
+        pose_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
+        # Store Results
+        pose_losses.append(pose_loss) 
+        # Optimize Gradients and Update Learning Rate
+        optimizer.zero_grad()
+        pose_loss.backward()
+        optimizer.step()
+    # Train Activity Second
+    for data in tqdm(dataloader):
+        # Prepare Data
+        _, three_dim_output_data, action_labels= data
         three_dim_output_data = three_dim_output_data.to(device)
         action_labels = action_labels.to(device)
         # Train Model
-        predicted_3d_pose_estimations, predicted_action_labels = model(two_dim_input_data)
+        predicted_action_labels = model.forward(x_3d=three_dim_output_data, mode='activity')
         # Calculate Loss
-        three_dim_pose_estimation_loss = pose_loss_multiplier * three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
-        action_label_loss = action_loss_multiplier * action_label_loss_fn(predicted_action_labels, action_labels) 
-        loss = action_label_loss + three_dim_pose_estimation_loss 
+        activity_loss = action_label_loss_fn(predicted_action_labels, action_labels )
         # Store Results
-        total_losses.append(loss)
-        pose_losses.append(three_dim_pose_estimation_loss)
-        action_losses.append(action_label_loss)
+        action_losses.append(activity_loss)
         predicted_action_labels = torch.argmax(predicted_action_labels, axis=1)
         predicted_labels = predicted_action_labels if predicted_labels is None else torch.cat((predicted_labels, predicted_action_labels), axis=0)
         true_labels = action_labels if true_labels is None else torch.cat((true_labels, action_labels), axis=0)
         # Optimize Gradients and Update Learning Rate
         optimizer.zero_grad()
-        loss.backward()
+        activity_loss.backward()
         optimizer.step()
+        
+    total_losses = [pose_losses[idx] + action_losses[idx] for idx in range(len(pose_losses))]
     
     return predicted_labels, true_labels, total_losses, pose_losses, action_losses
 
@@ -85,7 +99,7 @@ def test_once(test_dict):
             three_dim_output_data = three_dim_output_data.to(device)
             action_labels = action_labels.to(device)
             # Predict with model
-            predicted_3d_pose_estimations, predicted_action_labels = model(two_dim_input_data)
+            predicted_3d_pose_estimations, predicted_action_labels = model.forward(two_dim_input_data, three_dim_output_data, 'test')
             # Calculate Loss
             three_dim_pose_estimation_loss = pose_loss_multiplier * three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
             action_label_loss = action_loss_multiplier * action_label_loss_fn(predicted_action_labels, action_labels) 
