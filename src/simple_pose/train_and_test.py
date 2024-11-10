@@ -36,6 +36,7 @@ def train_once(train_dict):
     
     model.train()
     # Train Pose First
+    progress_bar = tqdm(total=len(dataloader), desc="Training =>")
     for data in tqdm(dataloader):
         # Prepare Data
         two_dim_input_data, three_dim_output_data, action_labels = data
@@ -61,6 +62,8 @@ def train_once(train_dict):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        progress_bar.update(1)
+    progress_bar.close()
     
     return predicted_labels, true_labels, total_losses, pose_losses, action_losses
 
@@ -81,6 +84,7 @@ def test_once(test_dict):
     
     model.eval()
     with torch.no_grad():
+        progress_bar = tqdm(total=len(dataloader), desc="Testing =>")
         for data in tqdm(dataloader):
             # Prepare Data
             two_dim_input_data, three_dim_output_data, action_labels= data
@@ -100,7 +104,8 @@ def test_once(test_dict):
             predicted_action_labels = torch.argmax(predicted_action_labels, axis=1)
             predicted_labels = predicted_action_labels if predicted_labels is None else torch.cat((predicted_labels, predicted_action_labels), axis=0)
             true_labels = action_labels if true_labels is None else torch.cat((true_labels, action_labels), axis=0)
-
+            progress_bar.update(1)
+        progress_bar.close()
     return predicted_labels, true_labels, total_losses, pose_losses, action_losses
 
 def print_evaluation_metric(epoch, predicted_labels, true_labels, total_losses, pose_losses, action_losses, mode):

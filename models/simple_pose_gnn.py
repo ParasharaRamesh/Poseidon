@@ -35,12 +35,12 @@ class GraphConvModule(nn.Module):
     
 # Simple GNN Model
 class SimplePoseGNN(nn.Module):
-    def __init__(self, hidden_size, num_classes, num_layers=4, dropout=0.5, k=20):
+    def __init__(self, hidden_size, num_classes, num_layers=4, dropout=0.5, k=16):
         super(SimplePoseGNN, self).__init__()
         self.k = k
         
-        self.input_layer_2d = nn.Linear(2 + self.k, hidden_size) # B x 16 x 2
-        self.input_layer_3d = nn.Linear(3 + self.k, hidden_size) # B x 16 x 3
+        self.input_layer = nn.Linear(2, hidden_size) # B x 16 x 2
+        self.pos_linear = nn.Linear(k, hidden_size)
         
         self.blocks = nn.ModuleList(Sequential(
             GraphConvModule(hidden_size, dropout),
@@ -61,20 +61,20 @@ class SimplePoseGNN(nn.Module):
             nn.Linear(hidden_size, num_classes)
         )
         
-    def forward(self, graph, node_2d_features = None, node_3d_features = None , mode = None):
+    def forward(self, graph, node_features = None, mode = None):
         
         if mode == 'pose':
-            lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_2d_features.device)
-            features = torch.cat([node_2d_features, lap_pe], dim=1)
-            h = self.input_layer(features)
+            lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_features.device)
+            # features = torch.cat([node_features, lap_pe], dim=1)
+            h = self.input_layer(node_features) + self.pos_linear(lap_pe)
             for block in self.blocks:
                 h = block(graph, h)
             pose_3d_estimations = self.output_3d_pose_linear(h)
             return pose_3d_estimations
         elif mode == 'activity':
-            lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_3d_features.device)
-            features = torch.cat([node_3d_features, lap_pe], dim=1)
-            h = self.input_layer(features)
+            lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_features.device)
+            # features = torch.cat([node_features, lap_pe], dim=1)
+            h = self.input_layer(node_features) + self.pos_linear(lap_pe)
             for block in self.blocks:
                 h = block(graph, h)
             graph.ndata['h'] = h
@@ -82,17 +82,13 @@ class SimplePoseGNN(nn.Module):
             label_predictions = self.output_label_linear(y)
             return label_predictions
         elif mode == 'test':
-            lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_2d_features.device)
-            features = torch.cat([node_2d_features, lap_pe], dim=1)
-            h = self.input_layer(features)
+            lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_features.device)
+            # features = torch.cat([node_features, lap_pe], dim=1)
+            h = self.input_layer(node_features) + self.pos_linear(lap_pe)
             for block in self.blocks:
                 h = block(graph, h)
             pose_3d_estimations = self.output_3d_pose_linear(h)
-            lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_3d_features.device)
-            features = torch.cat([node_3d_features, lap_pe], dim=1)
-            h = self.input_layer(features)
-            for block in self.blocks:
-                h = block(graph, h)
+            
             graph.ndata['h'] = h
             y = dgl.mean_nodes(graph, 'h')
             label_predictions = self.output_label_linear(y)
