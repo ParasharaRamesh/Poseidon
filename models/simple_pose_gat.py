@@ -57,7 +57,7 @@ class GraphTransformerLayer(nn.Module):
         
 class SimplePoseGAT(nn.Module):
     # Reducing layers due to memory issue = num_layers=8
-    def __init__(self, in_size, out_size, num_classes, hidden_size=80, num_layers=4, num_heads=8, dropout=0.6, k=20):
+    def __init__(self, in_size, out_size, num_classes, hidden_size=80, num_layers=2, num_heads=8, dropout=0.5, k=20):
         super().__init__()
         self.k = k
         self.embedding_h = nn.Linear(in_size, hidden_size)
@@ -70,44 +70,21 @@ class SimplePoseGAT(nn.Module):
         
         self.action_predictor = nn.Sequential(
             nn.Linear(hidden_size, hidden_size // 2),
-            nn.Dropout(dropout),
             nn.ReLU(),
             nn.Linear(hidden_size // 2, hidden_size // 4),
-            nn.Dropout(dropout),
             nn.ReLU(),
             nn.Linear(hidden_size // 4, num_classes),
         )
     
-    def forward(self, graph, node_features, mode):
-        if mode == 'pose':
-            indices = torch.stack(graph.edges())
-            N = graph.num_nodes()
-            lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_features.device)
-            A = dglsp.spmatrix(indices, shape=(N, N))
-            h = self.embedding_h(node_features) + self.pos_linear(lap_pe)
-            for layer in self.layers:
-                h = layer(A, h)
-            pose_3d = h
-            return self.pose_predictor(pose_3d)
-        elif mode == 'activity':
-            indices = torch.stack(graph.edges())
-            N = graph.num_nodes()
-            lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_features.device)
-            A = dglsp.spmatrix(indices, shape=(N, N))
-            h = self.embedding_h(node_features) + self.pos_linear(lap_pe)
-            for layer in self.layers:
-                h = layer(A, h)
-            h = self.pooler(graph, h)
-            return self.action_predictor(h)
-        elif mode == 'test':
-            indices = torch.stack(graph.edges())
-            N = graph.num_nodes()
-            lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_features.device)
-            A = dglsp.spmatrix(indices, shape=(N, N))
-            h = self.embedding_h(node_features) + self.pos_linear(lap_pe)
-            for layer in self.layers:
-                h = layer(A, h)
-            pose_3d = h
-            h = self.pooler(graph, h)
+    def forward(self, graph, node_features):
+        indices = torch.stack(graph.edges())
+        N = graph.num_nodes()
+        lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_features.device)
+        A = dglsp.spmatrix(indices, shape=(N, N))
+        h = self.embedding_h(node_features) + self.pos_linear(lap_pe)
+        for layer in self.layers:
+            h = layer(A, h)
+        pose_3d = h
+        h = self.pooler(graph, h)
 
-            return self.pose_predictor(pose_3d), self.action_predictor(h)
+        return self.pose_predictor(pose_3d), self.action_predictor(h)

@@ -47,8 +47,7 @@ def train_once(train_dict):
         batch_2d_labels = batch_graphs.ndata['label']
         batch_labels = batch_labels.to(device)
         # Train Model
-        predicted_3d_pose_estimations = model.forward(batch_graphs, batch_2d, 'pose')
-        predicted_action_labels = model.forward(batch_graphs, batch_2d, 'activity')
+        predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
         # Calculate Loss
         pose_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_2d_labels)
         activity_loss = action_label_loss_fn(predicted_action_labels, batch_labels )
@@ -95,7 +94,7 @@ def test_once(test_dict):
             batch_2d_labels = batch_graphs.ndata['label']
             batch_labels = batch_labels.to(device)
             # Train Model
-            predicted_3d_pose_estimations, predicted_action_labels = model.forward(batch_graphs, batch_2d, 'test')
+            predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
             # Calculate Loss
             pose_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_2d_labels)
             activity_loss = action_label_loss_fn(predicted_action_labels, batch_labels )
@@ -191,7 +190,7 @@ def training_loop(args):
     logging.info(f'Setup Training and Testing Dataloaders')
     
     NUM_LABELS = len(training_data.unique_labels)
-    INPUT_DIM = training_data[0][0].ndata['feat'].shape[1]
+    INPUT_DIM = training_data[0][0].ndata['feat_2d'].shape[1]
     OUTPUT_DIM = training_data[0][0].ndata['label'].shape[1]
     
     # Declare Model

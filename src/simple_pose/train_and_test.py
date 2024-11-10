@@ -44,8 +44,7 @@ def train_once(train_dict):
         three_dim_output_data = three_dim_output_data.to(device)
         action_labels = action_labels.to(device)
         # Train Model
-        predicted_3d_pose_estimations = model.forward(x=two_dim_input_data, mode='pose')
-        predicted_action_labels = model.forward(x=two_dim_input_data, mode='activity')
+        predicted_3d_pose_estimations, predicted_action_labels = model(two_dim_input_data)
         # Calculate Loss
         pose_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
         activity_loss = action_label_loss_fn(predicted_action_labels, action_labels )
@@ -92,7 +91,7 @@ def test_once(test_dict):
             three_dim_output_data = three_dim_output_data.to(device)
             action_labels = action_labels.to(device)
             # Predict with model
-            predicted_3d_pose_estimations, predicted_action_labels = model.forward(two_dim_input_data, 'test')
+            predicted_3d_pose_estimations, predicted_action_labels = model(two_dim_input_data)
             # Calculate Loss
             three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
             action_label_loss = action_label_loss_fn(predicted_action_labels, action_labels) 

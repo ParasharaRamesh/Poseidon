@@ -41,29 +41,12 @@ class SimplePose(nn.Module):
         ) # Predict Action Labels
         
     def forward(self, x=None, mode=None):
-        if mode == 'pose':
-            x = x.view(x.shape[0], -1)
-            x = self.input_linear_2d(x)
-            for block in self.blocks:
-                x = x + block(x)
-            three_dim_pose_predictions = self.output_3d_pose_linear(x)
-            joint_preds = three_dim_pose_predictions.view(x.shape[0], -1, 3)
-            return joint_preds
-        elif mode == 'activity':
-            x = x.view(x.shape[0], -1)
-            x = self.input_linear_2d(x)
-            for block in self.blocks:
-                x = x + block(x)
-            action_preds = self.output_label_linear(x)
-            return action_preds
-        elif mode == 'test':
-            x = x.view(x.shape[0], -1)
-            x = self.input_linear_2d(x)
-            for block in self.blocks:
-                x = x + block(x)
-            three_dim_pose_predictions = self.output_3d_pose_linear(x)
-            joint_preds = three_dim_pose_predictions.view(x.shape[0], -1, 3)
-            
-            action_preds = self.output_label_linear(x)
-            return joint_preds, action_preds
+        x = x.view(x.shape[0], -1)
+        x = self.input_linear_2d(x)
+        for block in self.blocks:
+            x = x + block(x)
+        three_dim_pose_predictions = self.output_3d_pose_linear(x)
+        joint_preds = three_dim_pose_predictions.view(x.shape[0], -1, 3)
         
+        action_preds = self.output_label_linear(x)
+        return joint_preds, action_preds

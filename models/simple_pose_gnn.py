@@ -62,34 +62,14 @@ class SimplePoseGNN(nn.Module):
         )
         
     def forward(self, graph, node_features = None, mode = None):
-        
-        if mode == 'pose':
-            lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_features.device)
-            # features = torch.cat([node_features, lap_pe], dim=1)
-            h = self.input_layer(node_features) + self.pos_linear(lap_pe)
-            for block in self.blocks:
-                h = block(graph, h)
-            pose_3d_estimations = self.output_3d_pose_linear(h)
-            return pose_3d_estimations
-        elif mode == 'activity':
-            lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_features.device)
-            # features = torch.cat([node_features, lap_pe], dim=1)
-            h = self.input_layer(node_features) + self.pos_linear(lap_pe)
-            for block in self.blocks:
-                h = block(graph, h)
-            graph.ndata['h'] = h
-            y = dgl.mean_nodes(graph, 'h')
-            label_predictions = self.output_label_linear(y)
-            return label_predictions
-        elif mode == 'test':
-            lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_features.device)
-            # features = torch.cat([node_features, lap_pe], dim=1)
-            h = self.input_layer(node_features) + self.pos_linear(lap_pe)
-            for block in self.blocks:
-                h = block(graph, h)
-            pose_3d_estimations = self.output_3d_pose_linear(h)
+        lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_features.device)
+        # features = torch.cat([node_features, lap_pe], dim=1)
+        h = self.input_layer(node_features) + self.pos_linear(lap_pe)
+        for block in self.blocks:
+            h = block(graph, h)
+        pose_3d_estimations = self.output_3d_pose_linear(h)
             
-            graph.ndata['h'] = h
-            y = dgl.mean_nodes(graph, 'h')
-            label_predictions = self.output_label_linear(y)
-            return pose_3d_estimations, label_predictions
+        graph.ndata['h'] = h
+        y = dgl.mean_nodes(graph, 'h')
+        label_predictions = self.output_label_linear(y)
+        return pose_3d_estimations, label_predictions
