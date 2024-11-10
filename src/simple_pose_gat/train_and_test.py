@@ -40,26 +40,28 @@ def train_once(train_dict):
     
     model.train()
     progress_bar = tqdm(total=len(dataloader), desc="Training =>")
-    for index, (batch_graphs, batch_labels) in enumerate(dataloader):
+    for (batch_graphs, batch_labels) in dataloader:
         # Prepare Data
         batch_graphs = batch_graphs.to(torch.device(device))
-        batch_2d = batch_graphs.ndata['feat']
-        batch_3d = batch_graphs.ndata['label']
+        batch_2d = batch_graphs.ndata['feat_2d']
+        batch_2d_labels = batch_graphs.ndata['label']
         batch_labels = batch_labels.to(device)
         # Train Model
-        predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
+        predicted_3d_pose_estimations = model.forward(batch_graphs, batch_2d, 'pose')
+        predicted_action_labels = model.forward(batch_graphs, batch_2d, 'activity')
         # Calculate Loss
-        three_dim_pose_estimation_loss = pose_loss_multiplier * three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
-        action_label_loss = action_loss_multiplier * action_label_loss_fn(predicted_action_labels, batch_labels)
-        loss = three_dim_pose_estimation_loss + action_label_loss
-        # Store Results
-        total_losses.append(loss)
-        pose_losses.append(three_dim_pose_estimation_loss)
-        action_losses.append(action_label_loss)
+        pose_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_2d_labels)
+        activity_loss = action_label_loss_fn(predicted_action_labels, batch_labels )
+        loss = action_loss_multiplier * activity_loss + pose_loss * pose_loss_multiplier
+        # Get Labels
         predicted_action_labels = torch.argmax(predicted_action_labels, axis=1)
         predicted_labels = predicted_action_labels if predicted_labels is None else torch.cat((predicted_labels, predicted_action_labels), axis=0)
         true_labels = batch_labels if true_labels is None else torch.cat((true_labels, batch_labels), axis=0)
-        # Optimize Gradients and Update Learning Rate
+        # Store Results
+        pose_losses.append(pose_loss)
+        action_losses.append(activity_loss)
+        total_losses.append(loss)
+        # Update Gradients
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -86,28 +88,28 @@ def test_once(test_dict):
     model.eval()
     with torch.no_grad():
         progress_bar = tqdm(total=len(dataloader), desc="Testing =>")
-        for index, (batch_graphs, batch_labels) in enumerate(dataloader):
+        for (batch_graphs, batch_labels) in dataloader:
             # Prepare Data
             batch_graphs = batch_graphs.to(torch.device(device))
-            batch_2d = batch_graphs.ndata['feat']
-            batch_3d = batch_graphs.ndata['label']
+            batch_2d = batch_graphs.ndata['feat_2d']
+            batch_2d_labels = batch_graphs.ndata['label']
             batch_labels = batch_labels.to(device)
             # Train Model
-            predicted_3d_pose_estimations, predicted_action_labels = model(batch_graphs, batch_2d)
+            predicted_3d_pose_estimations, predicted_action_labels = model.forward(batch_graphs, batch_2d, 'test')
             # Calculate Loss
-            three_dim_pose_estimation_loss = pose_loss_multiplier * three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_3d)
-            action_label_loss = action_loss_multiplier * action_label_loss_fn(predicted_action_labels, batch_labels)
-            loss = three_dim_pose_estimation_loss + action_label_loss
+            pose_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, batch_2d_labels)
+            activity_loss = action_label_loss_fn(predicted_action_labels, batch_labels )
+            loss = action_loss_multiplier * activity_loss + pose_loss * pose_loss_multiplier
             # Store Results
             total_losses.append(loss)
-            pose_losses.append(three_dim_pose_estimation_loss)
-            action_losses.append(action_label_loss)
+            pose_losses.append(pose_loss)
+            action_losses.append(activity_loss)
             predicted_action_labels = torch.argmax(predicted_action_labels, axis=1)
             predicted_labels = predicted_action_labels if predicted_labels is None else torch.cat((predicted_labels, predicted_action_labels), axis=0)
             true_labels = batch_labels if true_labels is None else torch.cat((true_labels, batch_labels), axis=0)
             progress_bar.update(1)
         progress_bar.close()
-
+        
     return predicted_labels, true_labels, total_losses, pose_losses, action_losses
 
 def print_evaluation_metric(epoch, predicted_labels, true_labels, total_losses, pose_losses, action_losses, mode):

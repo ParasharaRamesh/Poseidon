@@ -78,15 +78,36 @@ class SimplePoseGAT(nn.Module):
             nn.Linear(hidden_size // 4, num_classes),
         )
     
-    def forward(self, graph, node_features):
-        indices = torch.stack(graph.edges())
-        N = graph.num_nodes()
-        lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_features.device)
-        A = dglsp.spmatrix(indices, shape=(N, N))
-        h = self.embedding_h(node_features) + self.pos_linear(lap_pe)
-        for layer in self.layers:
-            h = layer(A, h)
-        pose_3d = h
-        h = self.pooler(graph, h)
+    def forward(self, graph, node_features, mode):
+        if mode == 'pose':
+            indices = torch.stack(graph.edges())
+            N = graph.num_nodes()
+            lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_features.device)
+            A = dglsp.spmatrix(indices, shape=(N, N))
+            h = self.embedding_h(node_features) + self.pos_linear(lap_pe)
+            for layer in self.layers:
+                h = layer(A, h)
+            pose_3d = h
+            return self.pose_predictor(pose_3d)
+        elif mode == 'activity':
+            indices = torch.stack(graph.edges())
+            N = graph.num_nodes()
+            lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_features.device)
+            A = dglsp.spmatrix(indices, shape=(N, N))
+            h = self.embedding_h(node_features) + self.pos_linear(lap_pe)
+            for layer in self.layers:
+                h = layer(A, h)
+            h = self.pooler(graph, h)
+            return self.action_predictor(h)
+        elif mode == 'test':
+            indices = torch.stack(graph.edges())
+            N = graph.num_nodes()
+            lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_features.device)
+            A = dglsp.spmatrix(indices, shape=(N, N))
+            h = self.embedding_h(node_features) + self.pos_linear(lap_pe)
+            for layer in self.layers:
+                h = layer(A, h)
+            pose_3d = h
+            h = self.pooler(graph, h)
 
-        return self.pose_predictor(pose_3d), self.action_predictor(h)
+            return self.pose_predictor(pose_3d), self.action_predictor(h)
