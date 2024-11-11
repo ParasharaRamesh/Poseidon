@@ -35,7 +35,7 @@ class GraphConvModule(nn.Module):
     
 # Simple GNN Model
 class SimplePoseGNN(nn.Module):
-    def __init__(self, hidden_size, num_classes, num_layers=4, dropout=0.5, k=16):
+    def __init__(self, hidden_size, num_classes, num_layers=8, dropout=0.5, k=5):
         super(SimplePoseGNN, self).__init__()
         self.k = k
         
