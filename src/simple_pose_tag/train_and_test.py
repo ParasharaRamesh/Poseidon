@@ -1,4 +1,4 @@
-from models.simple_pose_gnn import SimplePoseGNN
+from models.simple_pose_tag import SimplePoseTAG
 from torch import nn
 from torch.utils.data import DataLoader
 from dataloader.h36m_graph_loader import Human36MGraphDataset
@@ -196,8 +196,8 @@ def training_loop(args):
     HIDDEN_SIZE = 80
     
     # Declare Model
-    model = SimplePoseGNN(HIDDEN_SIZE, NUM_LABELS).to(DEVICE)
-    logging.info(f'Setup SimplePoseGNN model')
+    model = SimplePoseTAG(HIDDEN_SIZE, NUM_LABELS).to(DEVICE)
+    logging.info(f'Setup SimplePoseTAG model')
     logging.info(model)
     
     # Declare Optimizer
@@ -263,7 +263,7 @@ def training_loop(args):
 
 if __name__ == '__main__':
     timestamp = datetime.now().strftime("%Y-%m-%d--%H-%M-%S")
-    parser = argparse.ArgumentParser(description='SimplePoseGNN Training Code')
+    parser = argparse.ArgumentParser(description='SimplePoseTAG Training Code')
     parser.add_argument('--learning_rate', default=1e-3)
     parser.add_argument('--num_epochs', type=int, default=200)
     parser.add_argument('--batch_size', type=int, default=64)
@@ -275,6 +275,6 @@ if __name__ == '__main__':
     parser.add_argument('--testing_2d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'test_2d_poses.npy'))
     parser.add_argument('--testing_3d_data_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'test_3d_poses.npy'))
     parser.add_argument('--testing_label_path', type=str, default=os.path.join('datasets', 'h36m', 'Processed', 'test_actions.npy'))
-    parser.add_argument('--save_path', type=str, default=os.path.join('model_outputs', 'simple_pose_gnn', timestamp))
+    parser.add_argument('--save_path', type=str, default=os.path.join('model_outputs', 'simple_pose_tag', timestamp))
     args = parser.parse_args()
     training_loop(args)

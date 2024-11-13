@@ -35,29 +35,34 @@ def train_once(train_dict):
     action_losses = []
     
     model.train()
+    # Train Pose First
+    progress_bar = tqdm(total=len(dataloader), desc="Training =>")
     for data in tqdm(dataloader):
         # Prepare Data
-        two_dim_input_data, three_dim_output_data, action_labels= data
+        two_dim_input_data, three_dim_output_data, action_labels = data
         two_dim_input_data = two_dim_input_data.to(device)
         three_dim_output_data = three_dim_output_data.to(device)
         action_labels = action_labels.to(device)
         # Train Model
         predicted_3d_pose_estimations, predicted_action_labels = model(two_dim_input_data)
         # Calculate Loss
-        three_dim_pose_estimation_loss = pose_loss_multiplier * three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
-        action_label_loss = action_loss_multiplier * action_label_loss_fn(predicted_action_labels, action_labels) 
-        loss = action_label_loss + three_dim_pose_estimation_loss 
-        # Store Results
-        total_losses.append(loss)
-        pose_losses.append(three_dim_pose_estimation_loss)
-        action_losses.append(action_label_loss)
+        activity_loss = action_label_loss_fn(predicted_action_labels, action_labels )
+        pose_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
+        loss = action_loss_multiplier * activity_loss + pose_loss * pose_loss_multiplier
+        # Get Labels
         predicted_action_labels = torch.argmax(predicted_action_labels, axis=1)
         predicted_labels = predicted_action_labels if predicted_labels is None else torch.cat((predicted_labels, predicted_action_labels), axis=0)
         true_labels = action_labels if true_labels is None else torch.cat((true_labels, action_labels), axis=0)
-        # Optimize Gradients and Update Learning Rate
+        # Store Results
+        pose_losses.append(pose_loss)
+        action_losses.append(activity_loss)
+        total_losses.append(loss)
+        # Update Gradients
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        progress_bar.update(1)
+    progress_bar.close()
     
     return predicted_labels, true_labels, total_losses, pose_losses, action_losses
 
@@ -78,6 +83,7 @@ def test_once(test_dict):
     
     model.eval()
     with torch.no_grad():
+        progress_bar = tqdm(total=len(dataloader), desc="Testing =>")
         for data in tqdm(dataloader):
             # Prepare Data
             two_dim_input_data, three_dim_output_data, action_labels= data
@@ -87,9 +93,9 @@ def test_once(test_dict):
             # Predict with model
             predicted_3d_pose_estimations, predicted_action_labels = model(two_dim_input_data)
             # Calculate Loss
-            three_dim_pose_estimation_loss = pose_loss_multiplier * three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
-            action_label_loss = action_loss_multiplier * action_label_loss_fn(predicted_action_labels, action_labels) 
-            loss = action_label_loss + three_dim_pose_estimation_loss 
+            action_label_loss = action_label_loss_fn(predicted_action_labels, action_labels) 
+            three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
+            loss = action_loss_multiplier * action_label_loss + three_dim_pose_estimation_loss * pose_loss_multiplier
             # Store Results
             total_losses.append(loss)
             pose_losses.append(three_dim_pose_estimation_loss)
@@ -97,7 +103,8 @@ def test_once(test_dict):
             predicted_action_labels = torch.argmax(predicted_action_labels, axis=1)
             predicted_labels = predicted_action_labels if predicted_labels is None else torch.cat((predicted_labels, predicted_action_labels), axis=0)
             true_labels = action_labels if true_labels is None else torch.cat((true_labels, action_labels), axis=0)
-
+            progress_bar.update(1)
+        progress_bar.close()
     return predicted_labels, true_labels, total_losses, pose_losses, action_losses
 
 def print_evaluation_metric(epoch, predicted_labels, true_labels, total_losses, pose_losses, action_losses, mode):
@@ -252,8 +259,7 @@ def training_loop(args):
         test_output_dict['accuracies'].append(test_accuracy)
         save_model(SAVE_PATH, model, optimizer, scheduler, train_output_dict, test_output_dict)
         scheduler.step()
-    
-    create_graphs(train_output_dict, test_output_dict, SAVE_PATH)
+        create_graphs(train_output_dict, test_output_dict, SAVE_PATH)
 
 if __name__ == '__main__':
     timestamp = datetime.now().strftime("%Y-%m-%d--%H-%M-%S")

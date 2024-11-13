@@ -5,13 +5,15 @@ import torch
 import torch.nn.functional as F
 from dgl.nn.pytorch import Sequential
 
-class GraphConvModule(nn.Module):
+# Reference: https://docs.dgl.ai/en/1.1.x/generated/dgl.nn.pytorch.conv.TAGConv.html
+
+class TAGConvModule(nn.Module):
     def __init__(self, hidden_size, dropout):
-        super(GraphConvModule, self).__init__()
-        self.conv_1 = dglnn.GraphConv(hidden_size, hidden_size)
+        super(TAGConvModule, self).__init__()
+        self.conv_1 = dglnn.TAGConv(hidden_size, hidden_size, k=5)
         self.batch_norm_1 = nn.BatchNorm1d(hidden_size)
         
-        self.conv_2 = dglnn.GraphConv(hidden_size, hidden_size)
+        self.conv_2 = dglnn.TAGConv(hidden_size, hidden_size, k=5)
         self.batch_norm_2 = nn.BatchNorm1d(hidden_size)
         
         self.feed_forward_1 = nn.Linear(hidden_size, hidden_size)
@@ -34,17 +36,17 @@ class GraphConvModule(nn.Module):
         return h
     
 # Simple GNN Model
-class SimplePoseGNN(nn.Module):
+class SimplePoseTAG(nn.Module):
     def __init__(self, hidden_size, num_classes, num_layers=6, dropout=0.5, k=5):
-        super(SimplePoseGNN, self).__init__()
+        super(SimplePoseTAG, self).__init__()
         self.k = k
         
         self.input_layer = nn.Linear(2, hidden_size) # B x 16 x 2
         self.pos_linear = nn.Linear(k, hidden_size)
         
         self.blocks = nn.ModuleList(Sequential(
-            GraphConvModule(hidden_size, dropout),
-            GraphConvModule(hidden_size, dropout),
+            TAGConvModule(hidden_size, dropout),
+            TAGConvModule(hidden_size, dropout),
         ) for _ in range(num_layers))
         
         self.output_3d_pose_linear = nn.Sequential(
