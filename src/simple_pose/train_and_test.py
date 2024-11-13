@@ -46,8 +46,8 @@ def train_once(train_dict):
         # Train Model
         predicted_3d_pose_estimations, predicted_action_labels = model(two_dim_input_data)
         # Calculate Loss
-        pose_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
         activity_loss = action_label_loss_fn(predicted_action_labels, action_labels )
+        pose_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
         loss = action_loss_multiplier * activity_loss + pose_loss * pose_loss_multiplier
         # Get Labels
         predicted_action_labels = torch.argmax(predicted_action_labels, axis=1)
@@ -93,8 +93,8 @@ def test_once(test_dict):
             # Predict with model
             predicted_3d_pose_estimations, predicted_action_labels = model(two_dim_input_data)
             # Calculate Loss
-            three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
             action_label_loss = action_label_loss_fn(predicted_action_labels, action_labels) 
+            three_dim_pose_estimation_loss = three_dim_pose_loss_fn(predicted_3d_pose_estimations, three_dim_output_data)
             loss = action_loss_multiplier * action_label_loss + three_dim_pose_estimation_loss * pose_loss_multiplier
             # Store Results
             total_losses.append(loss)
