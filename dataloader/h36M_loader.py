@@ -6,8 +6,8 @@ class Human36MLoader(Dataset):
         self.two_d_dataset_path = two_d_dataset_path
         self.three_d_dataset_path = three_d_dataset_path
         self.label_dataset_path = label_dataset_path
-        self.input_data = np.load(self.two_d_dataset_path)
-        self.output_data = np.load(self.three_d_dataset_path)
+        self.input_data = np.load(self.two_d_dataset_path).astype(np.float32)
+        self.output_data = np.load(self.three_d_dataset_path).astype(np.float32)
         self.labels = np.load(self.label_dataset_path)
         unique_labels, tags = np.unique(self.labels, return_inverse=True)
         self.unique_labels = unique_labels
