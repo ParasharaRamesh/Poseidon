@@ -43,6 +43,7 @@ class SimplePoseTAG(nn.Module):
         
         self.input_layer = nn.Linear(2, hidden_size) # B x 16 x 2
         self.pos_linear = nn.Linear(k, hidden_size)
+        self.edge_linear = nn.Linear(4, hidden_size)
         
         self.blocks = nn.ModuleList(Sequential(
             TAGConvModule(hidden_size, dropout),
@@ -65,8 +66,22 @@ class SimplePoseTAG(nn.Module):
         
     def forward(self, graph, node_features = None, mode = None):
         lap_pe = dgl.lap_pe(graph, k=self.k, padding=True).to(node_features.device)
-        # features = torch.cat([node_features, lap_pe], dim=1)
-        h = self.input_layer(node_features) + self.pos_linear(lap_pe)
+        # Compute Laplacian positional encodings
+        # Transform edge features
+        edge_features = graph.edata['feat']
+        processed_edge_features = self.edge_linear(edge_features)  # Shape: (Batch Size x 30, Hidden Size)
+
+        # Aggregate edge features into node features
+        graph.edata['processed_feat'] = processed_edge_features
+        graph.update_all(
+            dgl.function.copy_e('processed_feat', 'm'),  # Send edge features as messages
+            dgl.function.sum('m', 'agg_edge_feat')  # Aggregate messages into nodes
+        )
+        agg_edge_features = graph.ndata['agg_edge_feat']  # Shape: (Batch Size x 16, Hidden Size)
+
+        # Combine node features, positional encodings, and aggregated edge features
+        h = self.input_layer(node_features) + self.pos_linear(lap_pe) + agg_edge_features
+
         for block in self.blocks:
             h = block(graph, h)
         pose_3d_estimations = self.output_3d_pose_linear(h)
