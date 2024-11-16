@@ -34,8 +34,8 @@ class Human36MGraphDataset(DGLDataset):
         human_pose_edge_src = torch.LongTensor([0, 0, 0, 1, 2, 4, 5, 7, 8, 8, 8, 10, 11, 13, 14])
         human_pose_edge_dst = torch.LongTensor([1, 4, 7, 2, 3, 5, 6, 8, 10, 13, 9, 11, 12, 14, 15])
         if 'custom' in self.label_dataset_path:
-            human_pose_edge_src = torch.LongTensor([0, 0, 0, 1, 2, 4, 5, 7, 8, 8, 10, 11])
-            human_pose_edge_dst = torch.LongTensor([1, 4, 7, 2, 3, 5, 6, 8, 10, 9, 11, 12])
+            human_pose_edge_src = torch.LongTensor([0, 0, 1, 1, 3, 2, 4, 1, 2, 7, 7, 9, 8, 10])
+            human_pose_edge_dst = torch.LongTensor([1, 2, 2, 3, 5, 4, 6, 7, 8, 8, 9, 11, 10, 12])
         graph = dgl.graph((human_pose_edge_src, human_pose_edge_dst))
         graph = dgl.to_bidirected(graph)
         # Add node features
