@@ -61,14 +61,19 @@ def create_train_test_files(subjects, dataset, keypoints, type, save_path):
     np.save(pose_action_file_path, out_actions)
     print(f"Saved pose actions in file {pose_action_file_path}")
 
+    # save valid joints to standardise with mediapipe poses
+    valid_joints = np.array([1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 15])
+
     # save 3d poses
     out_poses_3d = np.concatenate(out_poses_3d, axis=0)
+    out_poses_3d = out_poses_3d[:, valid_joints,:]
     pose_3d_file_path = os.path.join(save_path, f"{type}_3d_poses.npy")
     np.save(pose_3d_file_path, out_poses_3d)
     print(f"Saved 3d poses in file {pose_3d_file_path}")
 
     # save 2d poses
     out_poses_2d = np.concatenate(out_poses_2d, axis=0)
+    out_poses_2d = out_poses_2d[:, valid_joints,:]
     pose_2d_file_path = os.path.join(save_path, f"{type}_2d_poses.npy")
     np.save(pose_2d_file_path, out_poses_2d)
     print(f"Saved 2d poses in file {pose_2d_file_path}")
