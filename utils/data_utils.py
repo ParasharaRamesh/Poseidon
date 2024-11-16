@@ -34,23 +34,26 @@ def read_3d_data(dataset):
 
     return dataset
 
-def create_train_test_files(subjects, dataset, keypoints, type, save_path):
+def create_train_test_files(subjects, dataset, keypoints, type, save_path, keep_actions=[]):
     out_poses_3d = []
     out_poses_2d = []
     out_actions = []
 
     for subject in subjects:
         for action in keypoints[subject].keys():
+            if len(keep_actions) > 0 and action not in keep_actions:
+                continue
+
             poses_2d = keypoints[subject][action]
             for i in range(len(poses_2d)):  # Iterate across cameras
-                out_poses_2d.append(poses_2d[i])
-                out_actions.extend([action.split(' ')[0]] * poses_2d[i].shape[0])
+                out_poses_2d.append(poses_2d[i][200:])
+                out_actions.extend([action.split(' ')[0]] * poses_2d[i][200:].shape[0])
 
             if 'positions_3d' in dataset[subject][action]:
                 poses_3d = dataset[subject][action]['positions_3d']
                 assert len(poses_3d) == len(poses_2d), 'Camera count mismatch'
                 for i in range(len(poses_3d)):  # Iterate across cameras
-                    out_poses_3d.append(poses_3d[i])
+                    out_poses_3d.append(poses_3d[i][200:])
 
     if len(out_poses_3d) == 0:
         out_poses_3d = None
