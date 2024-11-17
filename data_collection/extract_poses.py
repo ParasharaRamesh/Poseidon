@@ -95,13 +95,13 @@ for action in ACTIONS:
 
             frame_number += 1
         
-        train_2d_poses.extend(pose_2ds[:-30])
-        train_3d_poses.extend(pose_3ds[:-30])
-        train_actions.extend(pose_actions[:-30])
+        train_2d_poses.extend(pose_2ds[:-35])
+        train_3d_poses.extend(pose_3ds[:-35])
+        train_actions.extend(pose_actions[:-35])
 
-        test_2d_poses.extend(pose_2ds[-30:])
-        test_3d_poses.extend(pose_3ds[-30:])
-        test_actions.extend(pose_actions[-30:])
+        test_2d_poses.extend(pose_2ds[-35:])
+        test_3d_poses.extend(pose_3ds[-35:])
+        test_actions.extend(pose_actions[-35:])
 
 cap.release()
 cv2.destroyAllWindows()
