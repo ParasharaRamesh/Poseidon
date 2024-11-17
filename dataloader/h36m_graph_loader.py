@@ -4,6 +4,8 @@ import numpy as np
 import dgl
 import torch
 
+from utils.graph_utils import HUMAN_POSE_EDGES, HUMAN_POSE_EDGES_CUSTOM
+
 class Human36MGraphDataset(DGLDataset):
     def __init__(self, two_dim_dataset_path, three_dim_dataset_path, label_dataset_path):
         self.two_dim_dataset_path = two_dim_dataset_path
@@ -13,6 +15,11 @@ class Human36MGraphDataset(DGLDataset):
         self.three_dim_data = None
         self.labels = None
         self.unique_labels = None
+        self.h36_src = [edge[0] for edge in HUMAN_POSE_EDGES]
+        self.h36_dest = [edge[1] for edge in HUMAN_POSE_EDGES]
+        self.custom_src = [edge[0] for edge in HUMAN_POSE_EDGES_CUSTOM]
+        self.custom_dest = [edge[1] for edge in HUMAN_POSE_EDGES_CUSTOM]
+
         super().__init__(name="human_3.6m")
         
     def process(self):
@@ -31,11 +38,11 @@ class Human36MGraphDataset(DGLDataset):
         two_dim_data, three_dim_data, label = self.two_dim_data[index], self.three_dim_data[index], self.labels[index]
         # Step 1: Define Graph
         # Edge Connections [Source & Destination] <-- Human Body Structure
-        human_pose_edge_src = torch.LongTensor([0, 0, 0, 1, 2, 4, 5, 7, 8, 8, 8, 10, 11, 13, 14])
-        human_pose_edge_dst = torch.LongTensor([1, 4, 7, 2, 3, 5, 6, 8, 10, 13, 9, 11, 12, 14, 15])
+        human_pose_edge_src = torch.LongTensor(self.h36_src)
+        human_pose_edge_dst = torch.LongTensor(self.h36_dest)
         if 'custom' in self.label_dataset_path:
-            human_pose_edge_src = torch.LongTensor([0, 0, 1, 1, 3, 2, 4, 1, 2, 7, 7, 9, 8, 10])
-            human_pose_edge_dst = torch.LongTensor([1, 2, 2, 3, 5, 4, 6, 7, 8, 8, 9, 11, 10, 12])
+            human_pose_edge_src = torch.LongTensor(self.custom_src)
+            human_pose_edge_dst = torch.LongTensor(self.custom_dest)
         graph = dgl.graph((human_pose_edge_src, human_pose_edge_dst))
         graph = dgl.to_bidirected(graph)
         # Add node features

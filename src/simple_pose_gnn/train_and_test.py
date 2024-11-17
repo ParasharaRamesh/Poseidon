@@ -2,6 +2,7 @@ from models.simple_pose_gnn import SimplePoseGNN
 from torch import nn
 from torch.utils.data import DataLoader
 from dataloader.h36m_graph_loader import Human36MGraphDataset
+from dataloader.h36m_graph_loader_with_edge_feats import Human36MGraphEdgeDataset
 from tqdm import tqdm
 import dgl
 import torch
@@ -182,10 +183,10 @@ def training_loop(args):
         file.close()
     
     # Prepare Training Data
-    training_data = Human36MGraphDataset(TRAINING_2D_DATA_PATH, TRAINING_3D_DATA_PATH, TRAINING_LABEL_PATH)
+    training_data = Human36MGraphEdgeDataset(TRAINING_2D_DATA_PATH, TRAINING_3D_DATA_PATH, TRAINING_LABEL_PATH)
     train_dataloader = DataLoader(training_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=12, collate_fn=collate)
     # Prepare Testing Data
-    testing_data = Human36MGraphDataset(TESTING_2D_DATA_PATH, TESTING_3D_DATA_PATH, TESTING_LABEL_PATH)
+    testing_data = Human36MGraphEdgeDataset(TESTING_2D_DATA_PATH, TESTING_3D_DATA_PATH, TESTING_LABEL_PATH)
     test_dataloader = DataLoader(testing_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=12, collate_fn=collate)
     
     logging.info(f'Setup Training and Testing Dataloaders')
