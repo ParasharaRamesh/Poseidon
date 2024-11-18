@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools
+import torch
+import os
 
 from utils.graph_utils import HUMAN_POSE_EDGES, HUMAN_POSE_EDGES_CUSTOM
 
@@ -165,3 +167,172 @@ def plot_confusion_matrix(cm, classes, normalize=False, title='Confusion Matrix'
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     plt.show()
+
+def save_fig(save_files, type, save_path='.'):
+    train_pose_losses = []
+    train_label_losses = []
+    train_total_losses = []
+    train_accuracies = []
+    test_pose_losses = []
+    test_label_losses = []
+    test_total_losses = []
+    test_accuracies = []
+
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
+    for model_name in save_files:
+        weights = torch.load(save_files[model_name], map_location=torch.device('cpu'))
+        train_vals = weights['train_outputs']
+        test_vals = weights["test_outputs"]
+
+        train_pose_losses.append({
+            "label": model_name,
+            "data": train_vals['pose_losses'],
+            "type": type
+        })
+
+        train_label_losses.append({
+            "label": model_name,
+            "data": train_vals['label_losses'],
+            "type": type
+        })
+
+        train_total_losses.append({
+            "label": model_name,
+            "data": train_vals['total_losses'],
+            "type": type
+        })
+
+        train_accuracies.append({
+            "label": model_name,
+            "data": train_vals['accuracies'],
+            "type": type
+        })
+
+        test_pose_losses.append({
+            "label": model_name,
+            "data": test_vals['pose_losses'],
+            "type": type
+        })
+
+        test_label_losses.append({
+            "label": model_name,
+            "data": test_vals['label_losses'],
+            "type": type
+        })
+
+        test_total_losses.append({
+            "label": model_name,
+            "data": test_vals['total_losses'],
+            "type": type
+        })
+
+        test_accuracies.append({
+            "label": model_name,
+            "data": test_vals['accuracies'],
+            "type": type
+        })
+
+    # Epochs
+    # 1. Training Loss Graph
+    plt.figure(figsize=(8, 6))
+    for data in train_label_losses:
+        current_label = f"{data['label']} Label Losses"
+        plt.plot(list(range(1, len(data['data']) + 1)), data['data'], marker='o', label=current_label)
+    plt.title('Training Label Losses')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f"{save_path}/{data['type']}_training_label_losses.png", dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # Training Pose Losses
+    plt.figure(figsize=(8, 6))
+    for data in train_pose_losses:
+        current_label = f"{data['label']} Pose Losses"
+        plt.plot(list(range(1, len(data['data']) + 1)), data['data'], marker='o', label=current_label)
+    plt.title('Training Pose Losses')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f"{save_path}/{data['type']}_training_pose_losses.png", dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # Training Total Losses
+    plt.figure(figsize=(8, 6))
+    for data in train_total_losses:
+        current_label = f"{data['label']} Total Losses"
+        plt.plot(list(range(1, len(data['data']) + 1)), data['data'], marker='o', label=current_label)
+    plt.title('Training Total Losses')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f"{save_path}/{data['type']}_training_total_losses.png", dpi=300, bbox_inches='tight')
+    plt.close()
+
+    plt.figure(figsize=(8, 6))
+    for data in train_accuracies:
+        current_label = f"{data['label']} Accuracies"
+        plt.plot(list(range(1, len(data['data']) + 1)), data['data'], marker='o', label=current_label)
+    plt.title('Training Accuracies')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f"{save_path}/{data['type']}_training_accuracies.png", dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # 1. Testing Loss Graph
+    plt.figure(figsize=(8, 6))
+    for data in test_label_losses:
+        current_label = f"{data['label']} Label Losses"
+        plt.plot(list(range(1, len(data['data']) + 1)), data['data'], marker='o', label=current_label)
+    plt.title('Testing Label Losses')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f"{save_path}/{data['type']}_testing_label_losses.png", dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # Testing Pose Losses
+    plt.figure(figsize=(8, 6))
+    for data in test_pose_losses:
+        current_label = f"{data['label']} Pose Losses"
+        plt.plot(list(range(1, len(data['data']) + 1)), data['data'], marker='o', label=current_label)
+    plt.title('Testing Pose Losses')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f"{save_path}/{data['type']}_testing_pose_losses.png", dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # Training Total Losses
+    plt.figure(figsize=(8, 6))
+    for data in test_total_losses:
+        current_label = f"{data['label']} Total Losses"
+        plt.plot(list(range(1, len(data['data']) + 1)), data['data'], marker='o', label=current_label)
+    plt.title('Testing Total Losses')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f"{save_path}/{data['type']}_testing_total_losses.png", dpi=300, bbox_inches='tight')
+    plt.close()
+
+    plt.figure(figsize=(8, 6))
+    for data in test_accuracies:
+        current_label = f"{data['label']} Accuracies"
+        plt.plot(list(range(1, len(data['data']) + 1)), data['data'], marker='o', label=current_label)
+    plt.title('Testing Accuracies')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f"{save_path}/{data['type']}_testing_accuracies.png", dpi=300, bbox_inches='tight')
+    plt.close()
