@@ -16,7 +16,7 @@ class GraphConvModule(nn.Module):
         
         self.feed_forward_1 = nn.Linear(hidden_size, hidden_size)
         self.dropout = nn.Dropout(dropout)
-        
+        8
     def forward(self, graph, node_features):
         h_in = node_features
         h = self.conv_1(graph, node_features)
