@@ -118,8 +118,8 @@ def visualize_2d_pose_actions(poses, action, k=5):
         plt.subplot(1, k, i+1)
         plt.scatter(pose[:, 0], pose[:, 1])
 
-        for i, xy in enumerate(pose):
-            plt.annotate(f'{i}', xy=xy)
+        for j, xy in enumerate(pose):
+            plt.annotate(f'{j}', xy=xy)
 
         for joints in HUMAN_POSE_EDGES:
             x1, y1 = pose[joints[0]]
@@ -128,7 +128,7 @@ def visualize_2d_pose_actions(poses, action, k=5):
 
         plt.xlabel('X axis')
         plt.ylabel('Y axis')
-        plt.title(f'{action} {i}')
+        plt.title(f'{action} {i + 1}')
         plt.gca().invert_xaxis()
         plt.gca().invert_yaxis()
 
@@ -136,6 +136,33 @@ def visualize_2d_pose_actions(poses, action, k=5):
     plt.tight_layout()
     plt.show()
 
+def visualize_2d_pose_actions_custom(poses, action, k=5):
+    plt.figure(figsize=(20, 4))
+
+    for i in range(k):
+        pose_idx = np.random.choice(len(poses))
+        pose = poses[pose_idx]
+
+        plt.subplot(1, k, i+1)
+        plt.scatter(pose[:, 0], pose[:, 1])
+
+        for j, xy in enumerate(pose):
+            plt.annotate(f'{j}', xy=xy)
+
+        for joints in HUMAN_POSE_EDGES_CUSTOM:
+            x1, y1 = pose[joints[0]]
+            x2, y2 = pose[joints[1]]
+            plt.plot([x1, x2], [y1, y2], 'bo-')
+
+        plt.xlabel('X axis')
+        plt.ylabel('Y axis')
+        plt.title(f'{action} {i + 1}')
+        plt.gca().invert_xaxis()
+        plt.gca().invert_yaxis()
+
+
+    plt.tight_layout()
+    plt.show()
 
 def plot_confusion_matrix(cm, classes, normalize=False, title='Confusion Matrix'):
     """
