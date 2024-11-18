@@ -21,6 +21,7 @@ datasets
 
 # Weights Folder
 weights
+final_weights
 
 # Model Output Folder
 model_outputs
