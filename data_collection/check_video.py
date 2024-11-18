@@ -2,8 +2,7 @@ import cv2
 import mediapipe as mp
 
 
-video_path = 'output.mp4'
-output_csv = 'results.csv'
+video_path = 'sample.mp4'
 
 # Initialize MediaPipe Pose and Drawing utilities
 mp_pose = mp.solutions.pose
@@ -15,10 +14,15 @@ cap = cv2.VideoCapture(video_path)
 
 frame_number = 0
 
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for MP4 files
+out = cv2.VideoWriter('output.mp4', fourcc, 30.0, (1920 * 2, 1080))
+
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
         break
+
+    original_image = frame.copy()
 
     # Convert the frame to RGB
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -46,6 +50,10 @@ while cap.isOpened():
         break
 
     frame_number += 1
+    annotated_image = frame.copy()
+    combined_image = cv2.hconcat([original_image, annotated_image])
+    out.write(combined_image)
 
 cap.release()
+out.release()
 cv2.destroyAllWindows()
