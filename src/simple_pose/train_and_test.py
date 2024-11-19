@@ -260,6 +260,7 @@ def training_loop(args):
         save_model(SAVE_PATH, model, optimizer, scheduler, train_output_dict, test_output_dict)
         scheduler.step()
         create_graphs(train_output_dict, test_output_dict, SAVE_PATH)
+    return test_predicted_labels.cpu().numpy(), test_true_labels.cpu().numpy()
 
 if __name__ == '__main__':
     timestamp = datetime.now().strftime("%Y-%m-%d--%H-%M-%S")
