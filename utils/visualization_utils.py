@@ -164,11 +164,14 @@ def visualize_2d_pose_actions_custom(poses, action, k=5):
     plt.tight_layout()
     plt.show()
 
-def plot_confusion_matrix(cm, classes, normalize=False, title='Confusion Matrix'):
+def plot_confusion_matrix(cm, classes, model_name, normalize=False,  save_path=os.path.join('visualizations', 'confusion_matrix'), title='Confusion Matrix'):
     """
     This function prints and plots the confusion matrix.
     Normalization can be applied by setting `normalize=True`
     """
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    
     plt.figure(figsize=(15,8))
     if normalize:
         cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
@@ -193,7 +196,8 @@ def plot_confusion_matrix(cm, classes, normalize=False, title='Confusion Matrix'
     plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
-    plt.show()
+    plt.savefig(f"{save_path}/{model_name}_conf_matrix.png", dpi=300, bbox_inches='tight')
+    plt.close()
 
 def save_fig(save_files, type, save_path='.'):
     train_pose_losses = []

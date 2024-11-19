@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-def generate_confusion_matrix(weights_path, testing_2d_path, testing_3d_path, testing_label_path, classes=["arm_stretch", "leg_stretch", "lunges", "side_stretch", "walking"], batch_size=256, pose_loss_multiplier=100, action_loss_multiplier=1):
+def generate_confusion_matrix(weights_path, testing_2d_path, testing_3d_path, testing_label_path, save_path, classes=["arm_stretch", "leg_stretch", "lunges", "side_stretch", "walking"], batch_size=256, pose_loss_multiplier=100, action_loss_multiplier=1):
     DEVICE = 'cuda' if torch.cuda.is_available() else ('mps' if torch.backends.mps.is_available() else 'cpu') 
     BATCH_SIZE = batch_size
     TESTING_2D_DATA_PATH = testing_2d_path
@@ -54,8 +54,8 @@ def generate_confusion_matrix(weights_path, testing_2d_path, testing_3d_path, te
     predicted_labels, true_labels, _, _, _ = test_once(test_dict)
 
     cm = confusion_matrix(true_labels.cpu().detach().numpy(), predicted_labels.cpu().detach().numpy())
-    plot_confusion_matrix(cm, classes=classes, normalize=False, title="SimplePoseGNN Unnormalized Confusion Matrix")
-    plot_confusion_matrix(cm, classes=classes, normalize=True, title="SimplePoseGNN Normalized Confusion Matrix")
+    plot_confusion_matrix(cm, classes=classes, model_name='SimplePoseGNN', normalize=False, save_path=save_path, title="SimplePoseGNN Unnormalized Confusion Matrix")
+    # plot_confusion_matrix(cm, classes=classes, normalize=True, title="SimplePoseGNN Normalized Confusion Matrix")
 
 
 # Collate_fn is required for DGL to Pytorch data fetching
