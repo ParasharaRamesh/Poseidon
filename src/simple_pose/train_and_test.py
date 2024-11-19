@@ -3,6 +3,8 @@ from torch import nn
 from torch.utils.data import DataLoader
 from dataloader.h36M_loader import Human36MLoader
 from tqdm import tqdm
+from sklearn.metrics import confusion_matrix
+from utils.visualization_utils import plot_confusion_matrix
 import torch
 from datetime import datetime
 import argparse
@@ -13,6 +15,44 @@ import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+def generate_confusion_matrix(weights_path, testing_2d_path, testing_3d_path, testing_label_path, batch_size=256, pose_loss_multiplier=100, action_loss_multiplier=1):
+    DEVICE = 'cuda' if torch.cuda.is_available() else ('mps' if torch.backends.mps.is_available() else 'cpu') 
+    BATCH_SIZE = batch_size
+    TESTING_2D_DATA_PATH = testing_2d_path
+    TESTING_3D_DATA_PATH =  testing_3d_path
+    TESTING_LABEL_PATH = testing_label_path
+    POSE_LOSS_MULTIPLIER = pose_loss_multiplier
+    ACTION_LOSS_MULTIPLIER = action_loss_multiplier
+
+    testing_data = Human36MLoader(TESTING_2D_DATA_PATH, TESTING_3D_DATA_PATH, TESTING_LABEL_PATH)
+    test_dataloader = DataLoader(testing_data, batch_size=BATCH_SIZE, shuffle=True)
+    TOTAL_JOINTS = testing_data.get_joint_numbers()
+    TOTAL_ACTIONS = testing_data.get_action_numbers()
+    three_dim_pose_loss_fn = nn.MSELoss()
+    action_label_loss_fn = nn.CrossEntropyLoss()
+
+    model = SimplePose(TOTAL_JOINTS, TOTAL_ACTIONS).to(DEVICE)
+    details = torch.load(weights_path)['model']
+    model.load_state_dict(details)
+    model.eval()
+
+    test_dict = {
+        'model': model,
+        'dataloader': test_dataloader,
+        'device': DEVICE,
+        'three_dim_pose_loss_fn': three_dim_pose_loss_fn,
+        'action_label_loss_fn': action_label_loss_fn,
+        'pose_loss_multiplier': POSE_LOSS_MULTIPLIER,
+        'action_loss_multiplier': ACTION_LOSS_MULTIPLIER
+    }
+
+    predicted_labels, true_labels, _, _, _ = test_once(test_dict)
+    classes = ["arm_stretch", "leg_stretch", "lunges", "side_stretch", "walking"]
+
+    cm = confusion_matrix(true_labels.cpu().detach().numpy(), predicted_labels.cpu().detach().numpy())
+    plot_confusion_matrix(cm, classes=classes, normalize=False, title="SimplePose Unnormalized Confusion Matrix")
+    plot_confusion_matrix(cm, classes=classes, normalize=True, title="SimplePose Normalized Confusion Matrix")
 
 def kaiming_weights_init(m):
     if isinstance(m, nn.Linear):
@@ -260,7 +300,6 @@ def training_loop(args):
         save_model(SAVE_PATH, model, optimizer, scheduler, train_output_dict, test_output_dict)
         scheduler.step()
         create_graphs(train_output_dict, test_output_dict, SAVE_PATH)
-    # return test_predicted_labels.cpu().numpy(), test_true_labels.cpu().numpy()
 
 if __name__ == '__main__':
     timestamp = datetime.now().strftime("%Y-%m-%d--%H-%M-%S")

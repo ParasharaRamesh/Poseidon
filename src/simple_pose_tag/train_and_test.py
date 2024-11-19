@@ -12,9 +12,51 @@ import json
 import logging
 import matplotlib.pyplot as plt
 from dataloader.h36m_graph_loader_with_edge_feats import Human36MGraphEdgeDataset
+from sklearn.metrics import confusion_matrix
+from utils.visualization_utils import plot_confusion_matrix
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+def generate_confusion_matrix(weights_path, testing_2d_path, testing_3d_path, testing_label_path, classes=["arm_stretch", "leg_stretch", "lunges", "side_stretch", "walking"], batch_size=256, pose_loss_multiplier=100, action_loss_multiplier=1):
+    DEVICE = 'cuda' if torch.cuda.is_available() else ('mps' if torch.backends.mps.is_available() else 'cpu') 
+    BATCH_SIZE = batch_size
+    TESTING_2D_DATA_PATH = testing_2d_path
+    TESTING_3D_DATA_PATH =  testing_3d_path
+    TESTING_LABEL_PATH = testing_label_path
+    POSE_LOSS_MULTIPLIER = pose_loss_multiplier
+    ACTION_LOSS_MULTIPLIER = action_loss_multiplier
+
+    testing_data = Human36MGraphEdgeDataset(TESTING_2D_DATA_PATH, TESTING_3D_DATA_PATH, TESTING_LABEL_PATH)
+    test_dataloader = DataLoader(testing_data, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate)
+    three_dim_pose_loss_fn = nn.MSELoss()
+    action_label_loss_fn = nn.CrossEntropyLoss()
+
+    HIDDEN_SIZE = 80
+    NUM_LABELS = len(testing_data.unique_labels)
+    
+    # Declare Model
+    model = SimplePoseTAG(HIDDEN_SIZE, NUM_LABELS).to(DEVICE)
+    details = torch.load(weights_path)['model']
+    model.load_state_dict(details)
+    model.eval()
+
+    test_dict = {
+        'model': model,
+        'dataloader': test_dataloader,
+        'device': DEVICE,
+        'three_dim_pose_loss_fn': three_dim_pose_loss_fn,
+        'action_label_loss_fn': action_label_loss_fn,
+        'pose_loss_multiplier': POSE_LOSS_MULTIPLIER,
+        'action_loss_multiplier': ACTION_LOSS_MULTIPLIER
+    }
+
+    predicted_labels, true_labels, _, _, _ = test_once(test_dict)
+
+    cm = confusion_matrix(true_labels.cpu().detach().numpy(), predicted_labels.cpu().detach().numpy())
+    plot_confusion_matrix(cm, classes=classes, normalize=False, title="SimplePoseTAG Unnormalized Confusion Matrix")
+    plot_confusion_matrix(cm, classes=classes, normalize=True, title="SimplePoseTAG Normalized Confusion Matrix")
+
 
 # Collate_fn is required for DGL to Pytorch data fetching
 def collate(samples):
